@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!--
+      net8.0 + LatestMajor keeps one binary that runs on every .NET runtime from 8 up,
+      both as a global tool and as the runner bundled inside NuGetCooldown.MSBuild.
+    -->
+    <TargetFramework>net8.0</TargetFramework>
+    <RollForward>LatestMajor</RollForward>
+    <RootNamespace>NuGetCooldown.Cli</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>nuget-cooldown</ToolCommandName>
+    <PackageId>NuGetCooldown</PackageId>
+    <Description>Dependency cooldown for NuGet: fail the build when any resolved package version — direct or transitive — is younger than N days. Malicious package versions are usually detected and removed within days of publication; a cooldown window means your builds never resolve them. Checks project.assets.json against NuGet publish dates, flags unlisted (withdrawn) versions, supports allow lists, JSON output for CI, and an offline cache. Companion package NuGetCooldown.MSBuild enforces the policy automatically on every build.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NuGetCooldown.Core\NuGetCooldown.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="NuGetCooldown.Tests" />
+  </ItemGroup>
+
+</Project>

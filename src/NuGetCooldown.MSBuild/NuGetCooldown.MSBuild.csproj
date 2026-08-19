@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Packaging-only project: ships the build/ hook plus the published CLI as the runner.
+    There is no library output; consumers get an automatic cooldown check on every build.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>true</IsPackable>
+    <PackageId>NuGetCooldown.MSBuild</PackageId>
+    <Description>Automatic dependency cooldown for every dotnet build: add this package and the build fails when any resolved NuGet package version — direct or transitive — is younger than N days (default 7). Supply-chain protection at build time: malicious package versions are usually detected and removed within days of publication, so builds inside the cooldown window never resolve them. Configurable via MSBuild properties or nuget-cooldown.json (allow lists, custom feeds, warn-only mode); incremental, cached, and CI-friendly with NCD-coded diagnostics. Install with PrivateAssets=all; the standalone CLI is the NuGetCooldown dotnet tool.</Description>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- NU5128: no lib/ folder is intentional. NU5100: assemblies under tools/ are intentional. -->
+    <NoWarn>$(NoWarn);NU5128;NU5100</NoWarn>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_NuGetCooldownPackRunner</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="build\**" Pack="true" PackagePath="build\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Build-order dependency only; the CLI is bundled via publish, not referenced. -->
+    <ProjectReference Include="..\NuGetCooldown.Cli\NuGetCooldown.Cli.csproj"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
+  </ItemGroup>
+
+  <Target Name="_NuGetCooldownPackRunner">
+    <PropertyGroup>
+      <_RunnerPublishDir>$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)cli-publish\</_RunnerPublishDir>
+    </PropertyGroup>
+
+    <MSBuild Projects="..\NuGetCooldown.Cli\NuGetCooldown.Cli.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);TargetFramework=net8.0;SelfContained=false;UseAppHost=false;PublishDir=$(_RunnerPublishDir)" />
+
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(_RunnerPublishDir)**\*.*"
+                              Exclude="$(_RunnerPublishDir)**\*.xml">
+        <PackagePath>tools\net8.0\any\%(RecursiveDir)</PackagePath>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
+
+</Project>

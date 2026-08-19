@@ -1,0 +1,52 @@
+name: Release
+
+# Tag a commit vX.Y.Z to test, pack, publish to nuget.org, and create a GitHub release.
+# Requires the NUGET_API_KEY repository secret (nuget.org API key scoped to
+# NuGetCooldown + NuGetCooldown.MSBuild).
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Version from tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: dotnet test -c Release
+
+      - name: Pack
+        run: dotnet pack -c Release -o artifacts/packages -p:Version=$VERSION
+
+      - name: End-to-end package test
+        shell: pwsh
+        run: ./eng/test-packages.ps1 -Version $env:VERSION
+
+      - name: Push to nuget.org
+        run: >
+          dotnet nuget push "artifacts/packages/*.nupkg"
+          --api-key "${{ secrets.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" artifacts/packages/*.nupkg
+          --title "NuGetCooldown $VERSION"
+          --generate-notes

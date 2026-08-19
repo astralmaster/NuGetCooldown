@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/astralmaster/NuGetCooldown/main/nuget-cooldown.schema.json",
+  "title": "NuGetCooldown configuration",
+  "description": "Configuration for NuGetCooldown (nuget-cooldown.json). Place next to your solution; the nearest file walking up from each project is used.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "cooldownDays": {
+      "description": "Minimum age, in days, every resolved package version must have. Versions younger than this fail the check.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3650,
+      "default": 7
+    },
+    "scope": {
+      "description": "Which packages are checked: 'all' (direct and transitive) or 'direct'.",
+      "type": "string",
+      "enum": ["all", "direct"],
+      "default": "all"
+    },
+    "allow": {
+      "description": "Packages exempt from the check. Each entry is 'IdPattern' (any version) or 'IdPattern@Version'; '*' is a wildcard, matching is case-insensitive. Examples: 'MyCompany.*', 'Serilog@4.3.0'.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "sources": {
+      "description": "NuGet V3 service index URLs, queried in order. Defaults to nuget.org.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "default": ["https://api.nuget.org/v3/index.json"]
+    },
+    "onUnknown": {
+      "description": "How to report a package whose publish date cannot be determined.",
+      "type": "string",
+      "enum": ["warn", "error", "ignore"],
+      "default": "warn"
+    },
+    "onUnlisted": {
+      "description": "How to report a package version that is unlisted (withdrawn) on its source.",
+      "type": "string",
+      "enum": ["warn", "error", "ignore"],
+      "default": "warn"
+    },
+    "onFeedError": {
+      "description": "How to report a source that could not be queried (network or server failure).",
+      "type": "string",
+      "enum": ["warn", "error", "ignore"],
+      "default": "warn"
+    }
+  }
+}

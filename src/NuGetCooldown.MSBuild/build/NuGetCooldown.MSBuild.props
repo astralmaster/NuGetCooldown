@@ -1,0 +1,22 @@
+<Project>
+
+  <!--
+    Defaults for the NuGetCooldown build check. Every property can be overridden in the
+    project file, Directory.Build.props, or on the command line (-p:NuGetCooldownDays=14).
+    Empty values defer to the CLI defaults and the nearest nuget-cooldown.json config file.
+  -->
+  <PropertyGroup>
+    <NuGetCooldownEnabled Condition="'$(NuGetCooldownEnabled)' == ''">true</NuGetCooldownEnabled>
+    <NuGetCooldownWarnOnly Condition="'$(NuGetCooldownWarnOnly)' == ''">false</NuGetCooldownWarnOnly>
+    <NuGetCooldownNoConfig Condition="'$(NuGetCooldownNoConfig)' == ''">false</NuGetCooldownNoConfig>
+    <NuGetCooldownOffline Condition="'$(NuGetCooldownOffline)' == ''">false</NuGetCooldownOffline>
+    <NuGetCooldownNoCache Condition="'$(NuGetCooldownNoCache)' == ''">false</NuGetCooldownNoCache>
+    <!--
+      Empty by default: NuGetCooldownDays, NuGetCooldownScope, NuGetCooldownOnUnknown,
+      NuGetCooldownOnUnlisted, NuGetCooldownOnFeedError, NuGetCooldownSources (';'-separated),
+      NuGetCooldownAllow (';'-separated), NuGetCooldownConfigFile, NuGetCooldownCacheDir.
+    -->
+    <NuGetCooldownToolPath Condition="'$(NuGetCooldownToolPath)' == ''">$(MSBuildThisFileDirectory)..\tools\net8.0\any\NuGetCooldown.Cli.dll</NuGetCooldownToolPath>
+  </PropertyGroup>
+
+</Project>

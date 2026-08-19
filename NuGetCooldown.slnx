@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NuGetCooldown.Cli/NuGetCooldown.Cli.csproj" />
+    <Project Path="src/NuGetCooldown.Core/NuGetCooldown.Core.csproj" />
+    <Project Path="src/NuGetCooldown.MSBuild/NuGetCooldown.MSBuild.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NuGetCooldown.Tests/NuGetCooldown.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -80,6 +80,12 @@ Assert ($r.ExitCode -ne 0) "build fails (exit $($r.ExitCode))"
 Assert ($r.Output -match 'error NCD001') 'error NCD001 reported'
 Assert ($r.Output -match 'Newtonsoft\.Json') 'the offending package is named'
 
+Write-Host '--- 3b. Hours-based window is forwarded and enforced' -ForegroundColor Cyan
+# 80000 hours (~3333 days) is a valid sub-max window that Newtonsoft.Json 13.0.3 is younger than.
+$r = Invoke-Build @('-p:NuGetCooldownDays=0', '-p:NuGetCooldownHours=80000')
+Assert ($r.ExitCode -ne 0) "hours-based cooldown fails the build (exit $($r.ExitCode))"
+Assert ($r.Output -match 'error NCD001') 'error NCD001 reported for the hours window'
+
 Write-Host '--- 4. Warn-only reports but does not fail' -ForegroundColor Cyan
 $r = Invoke-Build @('-p:NuGetCooldownDays=3000', '-p:NuGetCooldownWarnOnly=true')
 Assert ($r.ExitCode -eq 0) 'build succeeds in warn-only mode'

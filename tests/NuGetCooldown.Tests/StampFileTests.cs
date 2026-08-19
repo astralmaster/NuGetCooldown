@@ -10,7 +10,7 @@ public class StampFileTests
     {
         ToolVersion = "1.0.0-test",
         CheckedAtUtc = new DateTimeOffset(2026, 8, 19, 12, 0, 0, TimeSpan.Zero),
-        CooldownDays = 7,
+        Cooldown = TimeSpan.FromDays(7),
         Scope = DependencyScope.All,
         Sources = ["https://api.nuget.org/v3/index.json"],
         ProjectNames = ["App"],
@@ -22,6 +22,13 @@ public class StampFileTests
     {
         Package = PackageIdentity.Create("Foo", "1.0.0"),
         Status = severity == Severity.None ? PackageStatus.Ok : PackageStatus.Violation,
+        Severity = severity,
+    };
+
+    private static PackageResult Result(PackageStatus status, Severity severity) => new()
+    {
+        Package = PackageIdentity.Create("Foo", "1.0.0"),
+        Status = status,
         Severity = severity,
     };
 
@@ -57,5 +64,42 @@ public class StampFileTests
         StampFile.Update(report, stamp);
 
         Assert.False(File.Exists(stamp));
+    }
+
+    [Fact]
+    public void An_ignored_feed_outage_is_not_recorded_as_a_clean_build()
+    {
+        // onFeedError=ignore makes the result Severity.None, but nothing was actually verified,
+        // so the incremental stamp must NOT be written — otherwise later builds skip the check.
+        using var dir = new TempDir();
+        var stamp = dir.Combine("obj", "cooldown.stamp");
+
+        StampFile.Update(Report(Result(PackageStatus.FeedError, Severity.None)), stamp);
+
+        Assert.False(File.Exists(stamp));
+    }
+
+    [Fact]
+    public void An_ignored_unknown_date_is_not_recorded_as_a_clean_build()
+    {
+        using var dir = new TempDir();
+        var stamp = dir.Combine("obj", "cooldown.stamp");
+
+        StampFile.Update(Report(Result(PackageStatus.Unknown, Severity.None)), stamp);
+
+        Assert.False(File.Exists(stamp));
+    }
+
+    [Fact]
+    public void An_ignored_unlisted_package_is_still_stampable()
+    {
+        // Unlisted is a genuinely verified state (the date is known), so an ignored unlisted
+        // package does not prevent stamping — unlike an unverified feed error / unknown date.
+        using var dir = new TempDir();
+        var stamp = dir.Combine("obj", "cooldown.stamp");
+
+        StampFile.Update(Report(Result(PackageStatus.Unlisted, Severity.None)), stamp);
+
+        Assert.True(File.Exists(stamp));
     }
 }

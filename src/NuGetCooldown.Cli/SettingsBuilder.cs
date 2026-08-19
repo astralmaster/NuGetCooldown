@@ -41,9 +41,10 @@ internal static class SettingsBuilder
             }
         }
 
-        if (options.Days is { } days)
+        // Specifying either unit on the command line replaces the window entirely.
+        if (options.Days is not null || options.Hours is not null)
         {
-            settings = settings with { CooldownDays = days };
+            settings = settings with { Cooldown = ConfigFileLoader.ToWindow(options.Days, options.Hours) };
         }
 
         if (options.Scope is { } scope)
@@ -88,6 +89,14 @@ internal static class SettingsBuilder
             settings = settings with
             {
                 OnFeedError = ConfigFileLoader.ParseEnum<PolicyAction>(onFeedError, "--on-feed-error"),
+            };
+        }
+
+        if (options.OnNotRestored is { } onNotRestored)
+        {
+            settings = settings with
+            {
+                OnNotRestored = ConfigFileLoader.ParseEnum<PolicyAction>(onNotRestored, "--on-not-restored"),
             };
         }
 

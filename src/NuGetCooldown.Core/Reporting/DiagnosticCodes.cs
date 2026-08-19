@@ -15,8 +15,11 @@ public static class DiagnosticCodes
     /// <summary>A configured source could not be queried.</summary>
     public const string FeedError = "NCD004";
 
+    /// <summary>A project was requested but has not been restored, so it could not be checked.</summary>
+    public const string NotRestored = "NCD005";
+
     /// <summary>Invalid usage or configuration.</summary>
-    public const string Usage = "NCD005";
+    public const string Usage = "NCD006";
 
     /// <summary>Unexpected internal failure.</summary>
     public const string Internal = "NCD999";

@@ -76,7 +76,10 @@ internal static class ArgsParser
             switch (options.Command, arg)
             {
                 case ("check", "--days") or ("check", "-d"):
-                    options.Days = ParseDays(Value());
+                    options.Days = ParseCount(Value(), "days");
+                    break;
+                case ("check", "--hours"):
+                    options.Hours = ParseCount(Value(), "hours");
                     break;
                 case ("check", "--config") or ("check", "-c"):
                     options.ConfigPath = Value();
@@ -101,6 +104,9 @@ internal static class ArgsParser
                     break;
                 case ("check", "--on-feed-error"):
                     options.OnFeedError = Value();
+                    break;
+                case ("check", "--on-not-restored"):
+                    options.OnNotRestored = Value();
                     break;
                 case ("check", "--warn-only"):
                     options.WarnOnly = true;
@@ -133,7 +139,10 @@ internal static class ArgsParser
                     options.CacheDir = Value();
                     break;
                 case ("info", "--days") or ("info", "-d"):
-                    options.Days = ParseDays(Value());
+                    options.Days = ParseCount(Value(), "days");
+                    break;
+                case ("info", "--hours"):
+                    options.Hours = ParseCount(Value(), "hours");
                     break;
                 default:
                     throw new CooldownUsageException(
@@ -179,10 +188,10 @@ internal static class ArgsParser
         }
     }
 
-    private static int ParseDays(string value) =>
-        int.TryParse(value, out var days)
-            ? days
-            : throw new CooldownUsageException($"'{value}' is not a valid number of days.");
+    private static int ParseCount(string value, string unit) =>
+        int.TryParse(value, out var count)
+            ? count
+            : throw new CooldownUsageException($"'{value}' is not a valid number of {unit}.");
 
     /// <summary>Splits semicolon-separated values so MSBuild property lists map onto a single flag.</summary>
     private static void AddSplit(List<string> target, string value) =>

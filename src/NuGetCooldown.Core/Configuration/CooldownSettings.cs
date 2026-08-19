@@ -11,11 +11,14 @@ public sealed record CooldownSettings
     /// <summary>The nuget.org V3 service index.</summary>
     public const string NuGetOrgServiceIndex = "https://api.nuget.org/v3/index.json";
 
-    /// <summary>Upper bound for <see cref="CooldownDays"/> (ten years) — anything larger is a configuration mistake.</summary>
+    /// <summary>Upper bound for the cooldown window (ten years) — anything larger is a configuration mistake.</summary>
     public const int MaxCooldownDays = 3650;
 
-    /// <summary>Minimum age, in days, a package version must have.</summary>
-    public int CooldownDays { get; init; } = DefaultCooldownDays;
+    /// <summary>
+    /// Minimum age a package version must have. Stored as a duration so sub-day windows (e.g. 24 or
+    /// 72 hours, matching pnpm and the NuGet cooldown spec) are expressible, not just whole days.
+    /// </summary>
+    public TimeSpan Cooldown { get; init; } = TimeSpan.FromDays(DefaultCooldownDays);
 
     /// <summary>Which packages are checked: all (default) or direct-only.</summary>
     public DependencyScope Scope { get; init; } = DependencyScope.All;
@@ -35,16 +38,22 @@ public sealed record CooldownSettings
     /// <summary>How a source query failure is reported.</summary>
     public PolicyAction OnFeedError { get; init; } = PolicyAction.Warn;
 
+    /// <summary>How a project that has not been restored (no dependency graph to check) is reported.</summary>
+    public PolicyAction OnNotRestored { get; init; } = PolicyAction.Warn;
+
     /// <summary>When true, every finding is downgraded to a warning and the exit code is always 0.</summary>
     public bool WarnOnly { get; init; }
+
+    /// <summary>The cooldown window in whole-ish days, for display.</summary>
+    public string CooldownText => DurationFormat.Humanize(Cooldown);
 
     /// <summary>Throws <see cref="CooldownConfigException"/> when a value is out of range.</summary>
     public void Validate()
     {
-        if (CooldownDays is < 0 or > MaxCooldownDays)
+        if (Cooldown < TimeSpan.Zero || Cooldown > TimeSpan.FromDays(MaxCooldownDays))
         {
             throw new CooldownConfigException(
-                $"cooldownDays must be between 0 and {MaxCooldownDays}; got {CooldownDays}.");
+                $"The cooldown window must be between 0 and {MaxCooldownDays} days; got {CooldownText}.");
         }
 
         if (Sources.Count == 0)

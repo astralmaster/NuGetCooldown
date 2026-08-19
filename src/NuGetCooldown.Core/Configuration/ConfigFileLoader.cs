@@ -16,6 +16,9 @@ public sealed class ConfigFileDto
     /// <summary>Minimum age, in days, a package version must have.</summary>
     public int? CooldownDays { get; set; }
 
+    /// <summary>Minimum age, in hours, a package version must have. Added to <see cref="CooldownDays"/> when both are set.</summary>
+    public int? CooldownHours { get; set; }
+
     /// <summary><c>all</c> or <c>direct</c>.</summary>
     public string? Scope { get; set; }
 
@@ -33,6 +36,9 @@ public sealed class ConfigFileDto
 
     /// <summary><c>warn</c>, <c>error</c>, or <c>ignore</c>.</summary>
     public string? OnFeedError { get; set; }
+
+    /// <summary><c>warn</c>, <c>error</c>, or <c>ignore</c>.</summary>
+    public string? OnNotRestored { get; set; }
 }
 
 /// <summary>Finds and applies <c>nuget-cooldown.json</c> configuration files.</summary>
@@ -86,9 +92,11 @@ public static class ConfigFileLoader
 
         var settings = baseSettings;
 
-        if (dto.CooldownDays is { } days)
+        // If either unit is set, it defines the whole window (the unset unit contributes zero);
+        // if neither is set, the base window is kept.
+        if (dto.CooldownDays is not null || dto.CooldownHours is not null)
         {
-            settings = settings with { CooldownDays = days };
+            settings = settings with { Cooldown = ToWindow(dto.CooldownDays, dto.CooldownHours) };
         }
 
         if (dto.Scope is { } scope)
@@ -121,8 +129,17 @@ public static class ConfigFileLoader
             settings = settings with { OnFeedError = ParseEnum<PolicyAction>(onFeedError, "onFeedError", path) };
         }
 
+        if (dto.OnNotRestored is { } onNotRestored)
+        {
+            settings = settings with { OnNotRestored = ParseEnum<PolicyAction>(onNotRestored, "onNotRestored", path) };
+        }
+
         return settings;
     }
+
+    /// <summary>Combines optional day and hour counts into a single cooldown window.</summary>
+    public static TimeSpan ToWindow(int? days, int? hours) =>
+        TimeSpan.FromHours(((long)(days ?? 0) * 24) + (hours ?? 0));
 
     /// <summary>Parses a case-insensitive enum value, with a helpful error listing the valid names.</summary>
     public static TEnum ParseEnum<TEnum>(string value, string settingName, string? origin = null)

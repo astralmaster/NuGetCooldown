@@ -1,4 +1,3 @@
-using NuGetCooldown.Checking;
 using NuGetCooldown.Model;
 
 namespace NuGetCooldown.Reporting;
@@ -10,7 +9,7 @@ public sealed class TextReportWriter(TextWriter output, bool useColor)
     public void Write(CheckReport report, bool verbose)
     {
         output.WriteLine(
-            $"NuGetCooldown {report.ToolVersion} — cooldown: {report.CooldownDays} days, " +
+            $"NuGetCooldown {report.ToolVersion} — cooldown: {report.CooldownText}, " +
             $"scope: {(report.Scope == DependencyScope.All ? "all packages" : "direct only")}, " +
             $"sources: {string.Join(", ", report.Sources.Select(ShortSource))}");
 
@@ -21,10 +20,15 @@ public sealed class TextReportWriter(TextWriter output, bool useColor)
 
         output.WriteLine();
 
-        foreach (var project in report.NotRestoredProjects)
+        if (report.NotRestoredSeverity != Severity.None)
         {
-            WriteColored(ConsoleColor.Yellow, $"  ! {Path.GetFileName(project)} has not been restored — run 'dotnet restore' to include it");
-            output.WriteLine();
+            var color = report.NotRestoredSeverity == Severity.Error ? ConsoleColor.Red : ConsoleColor.Yellow;
+            foreach (var project in report.NotRestoredProjects)
+            {
+                var marker = report.NotRestoredSeverity == Severity.Error ? "x" : "!";
+                WriteColored(color, $"  {marker} {Path.GetFileName(project)} has not been restored — run 'dotnet restore' to include it");
+                output.WriteLine();
+            }
         }
 
         var shown = report.Results
@@ -65,15 +69,14 @@ public sealed class TextReportWriter(TextWriter output, bool useColor)
 
     private static string DescribeOk(PackageResult result) =>
         result.PublishedUtc is { } published
-            ? $"published {published:yyyy-MM-dd} ({CooldownChecker.FormatDays(result.AgeDays!.Value)} ago)"
+            ? $"published {published:yyyy-MM-dd} ({DurationFormat.Humanize(TimeSpan.FromDays(result.AgeDays!.Value))} ago)"
             : "ok";
 
     private void WriteSummary(CheckReport report)
     {
-        var checkedCount = report.Results.Count(r => r.Status != PackageStatus.Allowed);
         var cachePart = report.CacheHits > 0 ? $", {report.CacheHits} from cache" : "";
         output.WriteLine(
-            $"Checked {checkedCount} package version(s) across {report.ProjectNames.Count} project(s) " +
+            $"Checked {report.CheckedCount} package version(s) across {report.ProjectNames.Count} project(s) " +
             $"in {report.ElapsedSeconds:0.0}s{cachePart}.");
 
         var findings = new List<string>();
@@ -81,6 +84,10 @@ public sealed class TextReportWriter(TextWriter output, bool useColor)
         AddCount(findings, report.Count(PackageStatus.Unlisted), "unlisted version");
         AddCount(findings, report.Count(PackageStatus.Unknown), "unknown publish date");
         AddCount(findings, report.Count(PackageStatus.FeedError), "feed error");
+        if (report.NotRestoredSeverity != Severity.None && report.NotRestoredProjects.Count > 0)
+        {
+            AddCount(findings, report.NotRestoredProjects.Count, "unrestored project");
+        }
 
         if (findings.Count == 0)
         {

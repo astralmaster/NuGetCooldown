@@ -2,26 +2,26 @@ using NuGetCooldown.Configuration;
 
 namespace NuGetCooldown.Projects;
 
-/// <summary>The assets files to check, plus any projects that were found but not restored.</summary>
-/// <param name="AssetsFiles">Absolute paths of the <c>project.assets.json</c> files to check.</param>
-/// <param name="NotRestoredProjects">Projects with no assets file — <c>dotnet restore</c> has not run.</param>
+/// <summary>The dependency-graph files to check, plus any projects that were found but not restored.</summary>
+/// <param name="GraphFiles">Absolute paths of the <c>project.assets.json</c> / <c>packages.lock.json</c> files to check.</param>
+/// <param name="NotRestoredProjects">Projects with no graph file — neither restore output nor a lock file exists.</param>
 public sealed record ResolvedInputs(
-    IReadOnlyList<string> AssetsFiles,
+    IReadOnlyList<string> GraphFiles,
     IReadOnlyList<string> NotRestoredProjects);
 
 /// <summary>
-/// Turns the CLI's path argument — a directory, a solution, a project file, or an assets file —
-/// into the set of <c>project.assets.json</c> files to check.
+/// Turns the CLI's path argument — a directory, a solution, a project file, an assets file, or a
+/// lock file — into the set of dependency-graph files to check.
 /// </summary>
 public static class InputResolver
 {
-    private static readonly string[] ProjectPatterns = ["*.csproj", "*.fsproj", "*.vbproj"];
+    private static readonly string[] ProjectExtensions = [".csproj", ".fsproj", ".vbproj"];
 
     private static readonly HashSet<string> SkippedDirectories = new(
         ["bin", "obj", ".git", ".vs", ".idea", "node_modules", "packages", "artifacts"],
         StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Resolves <paramref name="path"/> to assets files.</summary>
+    /// <summary>Resolves <paramref name="path"/> to dependency-graph files.</summary>
     /// <exception cref="CooldownUsageException">The path does not exist or contains nothing checkable.</exception>
     public static ResolvedInputs Resolve(string path)
     {
@@ -42,7 +42,9 @@ public static class InputResolver
 
     private static ResolvedInputs ResolveFile(string fullPath)
     {
-        if (string.Equals(Path.GetFileName(fullPath), "project.assets.json", StringComparison.OrdinalIgnoreCase))
+        var name = Path.GetFileName(fullPath);
+        if (string.Equals(name, DependencyGraphReader.AssetsFileName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, LockFileReader.FileName, StringComparison.OrdinalIgnoreCase))
         {
             return new ResolvedInputs([fullPath], []);
         }
@@ -53,19 +55,22 @@ public static class InputResolver
             return FromProjects(SolutionFileParser.GetProjectPaths(fullPath));
         }
 
-        if (extension is ".csproj" or ".fsproj" or ".vbproj")
+        if (ProjectExtensions.Contains(extension))
         {
             return FromProjects([fullPath]);
         }
 
         throw new CooldownUsageException(
-            $"'{fullPath}' is not a solution, project, or project.assets.json file.");
+            $"'{fullPath}' is not a solution, project, {DependencyGraphReader.AssetsFileName}, "
+            + $"or {LockFileReader.FileName} file.");
     }
 
     private static ResolvedInputs ResolveDirectory(string directory)
     {
-        var solutions = Directory.EnumerateFiles(directory, "*.sln")
-            .Concat(Directory.EnumerateFiles(directory, "*.slnx"))
+        // Enumerate by exact extension: a bare "*.sln" wildcard also matches ".slnx" via Windows
+        // 8.3 short-name aliasing, which would double-count a single .slnx solution.
+        var solutions = EnumerateByExtension(directory, ".sln")
+            .Concat(EnumerateByExtension(directory, ".slnx"))
             .ToList();
 
         if (solutions.Count > 1)
@@ -99,9 +104,9 @@ public static class InputResolver
         {
             var dir = pending.Pop();
 
-            foreach (var pattern in ProjectPatterns)
+            foreach (var extension in ProjectExtensions)
             {
-                results.AddRange(Directory.EnumerateFiles(dir, pattern));
+                results.AddRange(EnumerateByExtension(dir, extension));
             }
 
             foreach (var subDir in Directory.EnumerateDirectories(dir))
@@ -117,17 +122,30 @@ public static class InputResolver
         return results;
     }
 
+    /// <summary>Enumerates files whose extension is exactly <paramref name="extension"/> (case-insensitive).</summary>
+    private static IEnumerable<string> EnumerateByExtension(string directory, string extension) =>
+        Directory.EnumerateFiles(directory, "*" + extension)
+            .Where(f => Path.GetExtension(f).Equals(extension, StringComparison.OrdinalIgnoreCase));
+
     private static ResolvedInputs FromProjects(IReadOnlyList<string> projectPaths)
     {
-        var assetsFiles = new List<string>();
+        var graphFiles = new List<string>();
         var notRestored = new List<string>();
 
         foreach (var project in projectPaths.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            var assetsFile = Path.Combine(Path.GetDirectoryName(project)!, "obj", "project.assets.json");
+            var projectDir = Path.GetDirectoryName(project)!;
+            var assetsFile = Path.Combine(projectDir, "obj", DependencyGraphReader.AssetsFileName);
+            var lockFile = Path.Combine(projectDir, LockFileReader.FileName);
+
+            // Prefer the restore output; fall back to a committed lock file so the check can run pre-restore.
             if (File.Exists(assetsFile))
             {
-                assetsFiles.Add(assetsFile);
+                graphFiles.Add(assetsFile);
+            }
+            else if (File.Exists(lockFile))
+            {
+                graphFiles.Add(lockFile);
             }
             else
             {
@@ -135,7 +153,7 @@ public static class InputResolver
             }
         }
 
-        if (assetsFiles.Count == 0)
+        if (graphFiles.Count == 0)
         {
             throw new CooldownUsageException(
                 notRestored.Count > 0
@@ -143,6 +161,6 @@ public static class InputResolver
                     : "No projects found to check.");
         }
 
-        return new ResolvedInputs(assetsFiles, notRestored);
+        return new ResolvedInputs(graphFiles, notRestored);
     }
 }

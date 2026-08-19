@@ -39,6 +39,7 @@ public class ArgsParserTests
         var options = ArgsParser.Parse([
             "check", "some/dir",
             "--days", "14",
+            "--hours", "6",
             "--config", "cfg.json",
             "--source", "https://a.test/index.json",
             "-s", "https://b.test/index.json",
@@ -47,6 +48,7 @@ public class ArgsParserTests
             "--on-unknown", "error",
             "--on-unlisted", "ignore",
             "--on-feed-error", "error",
+            "--on-not-restored", "error",
             "--warn-only",
             "--format", "json",
             "--verbose",
@@ -60,6 +62,7 @@ public class ArgsParserTests
         Assert.Equal("check", options.Command);
         Assert.Equal("some/dir", options.Path);
         Assert.Equal(14, options.Days);
+        Assert.Equal(6, options.Hours);
         Assert.Equal("cfg.json", options.ConfigPath);
         Assert.Equal(["https://a.test/index.json", "https://b.test/index.json"], options.Sources);
         Assert.Equal(["MyCompany.*", "Serilog@4.0.0"], options.Allow);
@@ -67,6 +70,7 @@ public class ArgsParserTests
         Assert.Equal("error", options.OnUnknown);
         Assert.Equal("ignore", options.OnUnlisted);
         Assert.Equal("error", options.OnFeedError);
+        Assert.Equal("error", options.OnNotRestored);
         Assert.True(options.WarnOnly);
         Assert.Equal("json", options.Format);
         Assert.True(options.Verbose);

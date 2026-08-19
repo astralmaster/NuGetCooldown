@@ -16,7 +16,7 @@ public class InputResolverTests
 
         var resolved = InputResolver.Resolve(assets);
 
-        Assert.Equal([assets], resolved.AssetsFiles);
+        Assert.Equal([assets], resolved.GraphFiles);
         Assert.Empty(resolved.NotRestoredProjects);
     }
 
@@ -29,7 +29,7 @@ public class InputResolverTests
 
         var resolved = InputResolver.Resolve(project);
 
-        Assert.Equal([assets], resolved.AssetsFiles);
+        Assert.Equal([assets], resolved.GraphFiles);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public class InputResolverTests
 
         var resolved = InputResolver.Resolve(dir.Path);
 
-        Assert.Equal([assetsA], resolved.AssetsFiles);
+        Assert.Equal([assetsA], resolved.GraphFiles);
         Assert.Equal([projectB], resolved.NotRestoredProjects);
     }
 
@@ -74,7 +74,7 @@ public class InputResolverTests
 
         var resolved = InputResolver.Resolve(dir.Path);
 
-        Assert.Equal([assets], resolved.AssetsFiles);
+        Assert.Equal([assets], resolved.GraphFiles);
         Assert.Empty(resolved.NotRestoredProjects);
     }
 
@@ -86,6 +86,62 @@ public class InputResolverTests
         dir.WriteFile("Two.sln", "");
 
         Assert.Throws<CooldownUsageException>(() => InputResolver.Resolve(dir.Path));
+    }
+
+    [Fact]
+    public void Directory_with_a_single_slnx_is_not_double_counted()
+    {
+        // Regression: Directory.EnumerateFiles(dir, "*.sln") also matches ".slnx" via Windows 8.3
+        // short-name aliasing, which used to count one .slnx solution as two and abort.
+        using var dir = new TempDir();
+        dir.WriteFile("App/App.csproj", "<Project />");
+        var assets = dir.WriteFile("App/obj/project.assets.json", MinimalAssets);
+        dir.WriteFile("App.slnx", """
+            <Solution>
+              <Project Path="App/App.csproj" />
+            </Solution>
+            """);
+
+        var resolved = InputResolver.Resolve(dir.Path);
+
+        Assert.Equal([assets], resolved.GraphFiles);
+    }
+
+    [Fact]
+    public void Lock_file_path_is_used_directly()
+    {
+        using var dir = new TempDir();
+        var lockFile = dir.WriteFile("packages.lock.json", """{ "version": 1, "dependencies": {} }""");
+
+        var resolved = InputResolver.Resolve(lockFile);
+
+        Assert.Equal([lockFile], resolved.GraphFiles);
+    }
+
+    [Fact]
+    public void Project_without_assets_falls_back_to_its_lock_file()
+    {
+        using var dir = new TempDir();
+        var project = dir.WriteFile("App/App.csproj", "<Project />");
+        var lockFile = dir.WriteFile("App/packages.lock.json", """{ "version": 1, "dependencies": {} }""");
+
+        var resolved = InputResolver.Resolve(project);
+
+        Assert.Equal([lockFile], resolved.GraphFiles);
+        Assert.Empty(resolved.NotRestoredProjects);
+    }
+
+    [Fact]
+    public void Assets_file_is_preferred_over_a_lock_file()
+    {
+        using var dir = new TempDir();
+        var project = dir.WriteFile("App/App.csproj", "<Project />");
+        var assets = dir.WriteFile("App/obj/project.assets.json", MinimalAssets);
+        dir.WriteFile("App/packages.lock.json", """{ "version": 1, "dependencies": {} }""");
+
+        var resolved = InputResolver.Resolve(project);
+
+        Assert.Equal([assets], resolved.GraphFiles);
     }
 
     [Fact]

@@ -9,8 +9,8 @@ public sealed record CheckReport
     /// <summary>UTC time the check ran.</summary>
     public required DateTimeOffset CheckedAtUtc { get; init; }
 
-    /// <summary>The cooldown window, in days.</summary>
-    public required int CooldownDays { get; init; }
+    /// <summary>The cooldown window.</summary>
+    public required TimeSpan Cooldown { get; init; }
 
     /// <summary>The dependency scope that was checked.</summary>
     public required DependencyScope Scope { get; init; }
@@ -27,21 +27,44 @@ public sealed record CheckReport
     /// <summary>Wall-clock duration of the check, in seconds.</summary>
     public required double ElapsedSeconds { get; init; }
 
+    /// <summary>Projects that were requested but have no dependency graph (not restored).</summary>
+    public IReadOnlyList<string> NotRestoredProjects { get; init; } = [];
+
+    /// <summary>Severity assigned to unrestored projects, per the <c>onNotRestored</c> policy.</summary>
+    public Severity NotRestoredSeverity { get; init; } = Severity.Warning;
+
+    /// <summary>The cooldown window, formatted for display.</summary>
+    public string CooldownText => DurationFormat.Humanize(Cooldown);
+
     /// <summary>How many lookups were answered by the local disk cache.</summary>
     public int CacheHits => Results.Count(r => r.FromCache);
 
-    /// <summary>Projects that were requested but have no <c>project.assets.json</c> (not restored).</summary>
-    public IReadOnlyList<string> NotRestoredProjects { get; init; } = [];
+    /// <summary>Number of package versions actually checked (everything except allow-listed skips).</summary>
+    public int CheckedCount => Results.Count(r => r.Status != PackageStatus.Allowed);
 
     /// <summary>Number of results with the given status.</summary>
     public int Count(PackageStatus status) => Results.Count(r => r.Status == status);
 
-    /// <summary>True when any result is an error (fails the check).</summary>
-    public bool HasErrors => Results.Any(r => r.Severity == Severity.Error);
+    /// <summary>True when the check fails: any error result, or unrestored projects under an error policy.</summary>
+    public bool HasErrors =>
+        Results.Any(r => r.Severity == Severity.Error)
+        || (NotRestoredSeverity == Severity.Error && NotRestoredProjects.Count > 0);
 
     /// <summary>True when no result is a warning or an error and every project was restored.</summary>
     public bool IsClean =>
         NotRestoredProjects.Count == 0 && Results.All(r => r.Severity == Severity.None);
+
+    /// <summary>
+    /// True only when every package's age was genuinely determined — no feed errors and no unknown
+    /// dates, even if the policy ignored them. This is what makes the incremental stamp safe: an
+    /// ignored feed outage must not be recorded as a verified-clean build.
+    /// </summary>
+    public bool FullyVerified =>
+        NotRestoredProjects.Count == 0
+        && Results.All(r => r.Status is not (PackageStatus.FeedError or PackageStatus.Unknown));
+
+    /// <summary>True when a clean, fully verified result may be recorded as an incremental-build stamp.</summary>
+    public bool StampEligible => IsClean && FullyVerified;
 
     /// <summary>Process exit code: 1 when the check fails, otherwise 0.</summary>
     public int ExitCode => HasErrors ? 1 : 0;

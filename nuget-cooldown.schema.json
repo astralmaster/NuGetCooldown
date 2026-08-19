@@ -10,11 +10,16 @@
       "type": "string"
     },
     "cooldownDays": {
-      "description": "Minimum age, in days, every resolved package version must have. Versions younger than this fail the check.",
+      "description": "Minimum age, in days, every resolved package version must have. Versions younger than this fail the check. Added to cooldownHours when both are set.",
       "type": "integer",
       "minimum": 0,
       "maximum": 3650,
       "default": 7
+    },
+    "cooldownHours": {
+      "description": "Minimum age, in hours, every resolved package version must have. Use for sub-day windows (e.g. 24 or 72). Added to cooldownDays when both are set.",
+      "type": "integer",
+      "minimum": 0
     },
     "scope": {
       "description": "Which packages are checked: 'all' (direct and transitive) or 'direct'.",
@@ -53,6 +58,12 @@
     },
     "onFeedError": {
       "description": "How to report a source that could not be queried (network or server failure).",
+      "type": "string",
+      "enum": ["warn", "error", "ignore"],
+      "default": "warn"
+    },
+    "onNotRestored": {
+      "description": "How to report a project that has no dependency graph to check (not restored and no committed lock file).",
       "type": "string",
       "enum": ["warn", "error", "ignore"],
       "default": "warn"

@@ -16,10 +16,21 @@ public class SettingsBuilderTests
         var options = new CliOptions { Command = "check", Days = 30 };
         var (settings, configPath) = SettingsBuilder.Build(options, dir.Path);
 
-        Assert.Equal(30, settings.CooldownDays);                    // CLI wins
+        Assert.Equal(TimeSpan.FromDays(30), settings.Cooldown);     // CLI wins
         Assert.Equal(DependencyScope.Direct, settings.Scope);       // config wins over default
         Assert.Equal([CooldownSettings.NuGetOrgServiceIndex], settings.Sources); // default survives
         Assert.NotNull(configPath);
+    }
+
+    [Fact]
+    public void Command_line_hours_replace_the_config_window()
+    {
+        using var dir = new TempDir();
+        dir.WriteFile(ConfigFileLoader.FileName, """{ "cooldownDays": 14 }""");
+
+        var (settings, _) = SettingsBuilder.Build(new CliOptions { Command = "check", Hours = 48 }, dir.Path);
+
+        Assert.Equal(TimeSpan.FromHours(48), settings.Cooldown);
     }
 
     [Fact]
@@ -32,7 +43,7 @@ public class SettingsBuilderTests
 
         var (settings, _) = SettingsBuilder.Build(new CliOptions { Command = "check" }, nested);
 
-        Assert.Equal(21, settings.CooldownDays);
+        Assert.Equal(TimeSpan.FromDays(21), settings.Cooldown);
     }
 
     [Fact]
@@ -44,7 +55,7 @@ public class SettingsBuilderTests
         var (settings, configPath) = SettingsBuilder.Build(
             new CliOptions { Command = "check", NoConfig = true }, dir.Path);
 
-        Assert.Equal(CooldownSettings.DefaultCooldownDays, settings.CooldownDays);
+        Assert.Equal(TimeSpan.FromDays(CooldownSettings.DefaultCooldownDays), settings.Cooldown);
         Assert.Null(configPath);
     }
 
@@ -82,6 +93,7 @@ public class SettingsBuilderTests
             OnUnknown = "ERROR",
             OnUnlisted = "Ignore",
             OnFeedError = "error",
+            OnNotRestored = "Error",
             WarnOnly = true,
         };
 
@@ -91,6 +103,7 @@ public class SettingsBuilderTests
         Assert.Equal(PolicyAction.Error, settings.OnUnknown);
         Assert.Equal(PolicyAction.Ignore, settings.OnUnlisted);
         Assert.Equal(PolicyAction.Error, settings.OnFeedError);
+        Assert.Equal(PolicyAction.Error, settings.OnNotRestored);
         Assert.True(settings.WarnOnly);
     }
 

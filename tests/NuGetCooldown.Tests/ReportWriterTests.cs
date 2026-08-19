@@ -35,7 +35,7 @@ public class ReportWriterTests
     {
         ToolVersion = "1.0.0-test",
         CheckedAtUtc = Now,
-        CooldownDays = 7,
+        Cooldown = TimeSpan.FromDays(7),
         Scope = DependencyScope.All,
         Sources = ["https://api.nuget.org/v3/index.json"],
         ProjectNames = ["App"],
@@ -105,6 +105,23 @@ public class ReportWriterTests
     }
 
     [Fact]
+    public void MSBuild_output_surfaces_unrestored_projects_under_their_policy()
+    {
+        var report = Report(Result("Fine", PackageStatus.Ok, Severity.None)) with
+        {
+            NotRestoredProjects = [@"C:\repo\Skipped\Skipped.csproj"],
+            NotRestoredSeverity = Severity.Error,
+        };
+
+        var writer = new StringWriter();
+        MSBuildReportWriter.Write(report, @"C:\repo\App.csproj", writer);
+        var text = writer.ToString();
+
+        Assert.Matches(new Regex(@"error NCD005: .*Skipped\.csproj"), text);
+        Assert.Contains("dotnet restore", text);
+    }
+
+    [Fact]
     public void Json_output_is_stable_and_complete()
     {
         var report = Report(
@@ -117,7 +134,8 @@ public class ReportWriterTests
         var root = doc.RootElement;
 
         Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
-        Assert.Equal(7, root.GetProperty("cooldownDays").GetInt32());
+        Assert.Equal(7, root.GetProperty("cooldownDays").GetDouble());
+        Assert.Equal(168, root.GetProperty("cooldownHours").GetDouble());
         Assert.Equal("all", root.GetProperty("scope").GetString());
         Assert.Equal(1, root.GetProperty("exitCode").GetInt32());
         Assert.Equal(1, root.GetProperty("summary").GetProperty("violations").GetInt32());

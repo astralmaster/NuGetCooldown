@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using NuGetCooldown.Json;
 using NuGetCooldown.Model;
@@ -21,6 +23,12 @@ public sealed record CacheEntry(
 /// package version keeps concurrent builds safe: writes go to a temp file and are moved into
 /// place atomically, and unreadable entries are simply refetched.
 /// </summary>
+/// <remarks>
+/// The package id and version come from an untrusted <c>project.assets.json</c>, so they are never
+/// used as path segments directly. Each file is placed under a hash of the identity, which bounds
+/// the path length, cannot escape the cache root, and cannot collide; the entry additionally stores
+/// its id and version so a read verifies it belongs to the package that was asked for.
+/// </remarks>
 public sealed class FileCache
 {
     /// <summary>Environment variable that overrides the cache location.</summary>
@@ -37,16 +45,19 @@ public sealed class FileCache
     /// </summary>
     public FileCache(string? cacheDir = null)
     {
-        Root = cacheDir
-               ?? Environment.GetEnvironmentVariable(CacheDirEnvVar)
-               ?? DefaultRoot();
+        var root = cacheDir
+                   ?? Environment.GetEnvironmentVariable(CacheDirEnvVar)
+                   ?? DefaultRoot();
+
+        // A trailing separator can arrive from an MSBuild directory property; drop it so the path is clean.
+        Root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
     }
 
     private static string DefaultRoot() => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "NuGetCooldown", "cache", "v1");
+        "NuGetCooldown", "cache", "v2");
 
-    /// <summary>Returns the cached entry, or <see langword="null"/> when absent or unreadable.</summary>
+    /// <summary>Returns the cached entry, or <see langword="null"/> when absent, unreadable, or mismatched.</summary>
     public CacheEntry? TryGet(PackageIdentity package)
     {
         var path = EntryPath(package);
@@ -59,7 +70,18 @@ public sealed class FileCache
 
             using var stream = File.OpenRead(path);
             var entry = JsonSerializer.Deserialize(stream, CoreJsonContext.Default.CacheEntry);
-            return entry?.SchemaVersion == CurrentSchemaVersion ? entry : null;
+
+            // Trust the entry only when it is the current schema AND actually describes this package;
+            // otherwise a hash collision or a tampered file could serve one package's date as another's.
+            if (entry is null
+                || entry.SchemaVersion != CurrentSchemaVersion
+                || !string.Equals(entry.Id, package.Id, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(entry.Version, package.Version, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return entry;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -72,16 +94,17 @@ public sealed class FileCache
     public void Set(PackageIdentity package, CacheEntry entry)
     {
         var path = EntryPath(package);
+        var tempPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var tempPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             File.WriteAllText(tempPath, JsonSerializer.Serialize(entry, CoreJsonContext.Default.CacheEntry));
             File.Move(tempPath, path, overwrite: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Read-only or contended file systems (CI sandboxes) are fine; the feed remains the source of truth.
+            TryDelete(tempPath);
         }
     }
 
@@ -97,19 +120,31 @@ public sealed class FileCache
         return true;
     }
 
-    private string EntryPath(PackageIdentity package) =>
-        Path.Combine(Root, Sanitize(package.LowerId), Sanitize(package.LowerVersion) + ".json");
-
-    /// <summary>Package ids/versions are already filesystem-safe; this guards against hostile input.</summary>
-    private static string Sanitize(string value)
+    private string EntryPath(PackageIdentity package)
     {
-        Span<char> buffer = stackalloc char[value.Length];
-        for (var i = 0; i < value.Length; i++)
-        {
-            var c = value[i];
-            buffer[i] = char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_' or '+' ? c : '_';
-        }
+        // Two hex chars of shard directory keep any single folder from growing without bound;
+        // the remainder names the file. Both derive from a hash of the (already lowercased) identity.
+        var hash = IdentityHash(package);
+        return Path.Combine(Root, hash[..2], hash + ".json");
+    }
 
-        return new string(buffer);
+    private static string IdentityHash(PackageIdentity package)
+    {
+        // A separator that cannot appear in either half keeps "a|b"+"c" distinct from "a"+"b|c".
+        var key = package.LowerId + "\n" + package.LowerVersion;
+        var digest = SHA256.HashData(Encoding.UTF8.GetBytes(key));
+        return Convert.ToHexString(digest.AsSpan(0, 16)).ToLowerInvariant();
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Nothing more we can do; a stray temp file is harmless.
+        }
     }
 }

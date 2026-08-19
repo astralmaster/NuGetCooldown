@@ -28,11 +28,21 @@ public sealed record PackageIdentity
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(version);
 
-        var normalized = NuGetVersion.TryParse(version, out var parsed)
+        return new PackageIdentity(id.Trim(), NormalizeVersion(version));
+    }
+
+    /// <summary>
+    /// Normalizes a version the way NuGet does (<c>1.0</c> → <c>1.0.0</c>, build metadata stripped),
+    /// keeping it verbatim when it does not parse. Shared so identity and allow-list matching can
+    /// never drift apart.
+    /// </summary>
+    public static string NormalizeVersion(string version)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(version);
+
+        return NuGetVersion.TryParse(version, out var parsed)
             ? parsed.ToNormalizedString()
             : version.Trim();
-
-        return new PackageIdentity(id.Trim(), normalized);
     }
 
     /// <summary>The lowercase id, as used in NuGet V3 API URLs.</summary>

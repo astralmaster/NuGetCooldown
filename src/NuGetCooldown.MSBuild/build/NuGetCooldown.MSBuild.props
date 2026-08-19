@@ -12,8 +12,9 @@
     <NuGetCooldownOffline Condition="'$(NuGetCooldownOffline)' == ''">false</NuGetCooldownOffline>
     <NuGetCooldownNoCache Condition="'$(NuGetCooldownNoCache)' == ''">false</NuGetCooldownNoCache>
     <!--
-      Empty by default: NuGetCooldownDays, NuGetCooldownScope, NuGetCooldownOnUnknown,
-      NuGetCooldownOnUnlisted, NuGetCooldownOnFeedError, NuGetCooldownSources (';'-separated),
+      Empty by default: NuGetCooldownDays, NuGetCooldownHours, NuGetCooldownScope,
+      NuGetCooldownOnUnknown, NuGetCooldownOnUnlisted, NuGetCooldownOnFeedError,
+      NuGetCooldownOnNotRestored, NuGetCooldownSources (';'-separated),
       NuGetCooldownAllow (';'-separated), NuGetCooldownConfigFile, NuGetCooldownCacheDir.
     -->
     <NuGetCooldownToolPath Condition="'$(NuGetCooldownToolPath)' == ''">$(MSBuildThisFileDirectory)..\tools\net8.0\any\NuGetCooldown.Cli.dll</NuGetCooldownToolPath>

@@ -75,19 +75,53 @@ public class FileCacheTests
         Assert.False(cache.Clear());
     }
 
-    [Fact]
-    public void Hostile_characters_in_ids_are_sanitized_for_the_filesystem()
+    [Theory]
+    [InlineData("a/b:c", "1.0.0")]
+    [InlineData("..", "1.0.0")]           // a traversal attempt from a hostile assets file
+    [InlineData("../../etc", "1.0.0")]
+    [InlineData("a\\b", "..")]
+    public void Hostile_ids_and_versions_stay_inside_the_cache_root(string id, string version)
     {
         using var dir = new TempDir();
-        var cache = new FileCache(dir.Path);
-        var hostile = PackageIdentity.Create("a/b:c", "not-a-version");
+        var cacheRoot = dir.Combine("cache");
+        var cache = new FileCache(cacheRoot);
+        var hostile = PackageIdentity.Create(id, version);
 
         cache.Set(hostile, Entry() with { Id = hostile.Id, Version = hostile.Version });
 
         Assert.NotNull(cache.TryGet(hostile));
-        // Everything must stay under the cache root.
+        // Nothing may be written outside the cache root, no matter what the identity contains.
         Assert.All(
             Directory.GetFiles(dir.Path, "*", SearchOption.AllDirectories),
-            f => Assert.StartsWith(dir.Path, f));
+            f => Assert.StartsWith(cacheRoot, f));
+    }
+
+    [Fact]
+    public void A_very_long_id_does_not_crash_and_roundtrips()
+    {
+        using var dir = new TempDir();
+        var cache = new FileCache(dir.Path);
+        var huge = PackageIdentity.Create(new string('x', 200_000), "1.0.0");
+
+        cache.Set(huge, Entry() with { Id = huge.Id, Version = huge.Version });
+
+        Assert.NotNull(cache.TryGet(huge));
+    }
+
+    [Fact]
+    public void An_entry_for_a_different_package_is_rejected()
+    {
+        // Defense in depth: even if a file sits at the computed path, it is trusted only when its
+        // stored id/version match the request — so a collision or tampered file can't be served.
+        using var dir = new TempDir();
+        var cache = new FileCache(dir.Path);
+        cache.Set(Package, Entry());
+
+        var file = Directory.GetFiles(dir.Path, "*.json", SearchOption.AllDirectories).Single();
+        var tampered = File.ReadAllText(file).Replace("2026-08-01", "2000-01-01");
+        // Rewrite the file's Id so it no longer describes the requested package.
+        File.WriteAllText(file, tampered.Replace(Package.Id, "Some.Other.Package"));
+
+        Assert.Null(cache.TryGet(Package));
     }
 }

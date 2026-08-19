@@ -23,7 +23,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <_NuGetCooldownSettings Include="v1|$(NuGetCooldownDays)|$(NuGetCooldownScope)|$(NuGetCooldownWarnOnly)|$(NuGetCooldownOnUnknown)|$(NuGetCooldownOnUnlisted)|$(NuGetCooldownOnFeedError)|$(NuGetCooldownSources)|$(NuGetCooldownAllow)|$(_NuGetCooldownConfigFile)|$(NuGetCooldownOffline)|$(NuGetCooldownNoCache)|$(NuGetCooldownNoConfig)" />
+      <_NuGetCooldownSettings Include="v2|$(NuGetCooldownDays)|$(NuGetCooldownHours)|$(NuGetCooldownScope)|$(NuGetCooldownWarnOnly)|$(NuGetCooldownOnUnknown)|$(NuGetCooldownOnUnlisted)|$(NuGetCooldownOnFeedError)|$(NuGetCooldownOnNotRestored)|$(NuGetCooldownSources)|$(NuGetCooldownAllow)|$(_NuGetCooldownConfigFile)|$(NuGetCooldownOffline)|$(NuGetCooldownNoCache)|$(NuGetCooldownNoConfig)|$(NuGetCooldownCacheDir)" />
     </ItemGroup>
 
     <Hash ItemsToHash="@(_NuGetCooldownSettings)">
@@ -64,18 +64,21 @@
 
       <_NuGetCooldownCmd>"$(_NuGetCooldownDotNet)" exec "$(NuGetCooldownToolPath)" check "$(ProjectAssetsFile)" --msbuild "$(MSBuildProjectFullPath)" --stamp-file "$(_NuGetCooldownStampFile)"</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownDays)' != ''">$(_NuGetCooldownCmd) --days $(NuGetCooldownDays)</_NuGetCooldownCmd>
+      <_NuGetCooldownCmd Condition="'$(NuGetCooldownHours)' != ''">$(_NuGetCooldownCmd) --hours $(NuGetCooldownHours)</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownScope)' != ''">$(_NuGetCooldownCmd) --scope $(NuGetCooldownScope)</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownWarnOnly)' == 'true'">$(_NuGetCooldownCmd) --warn-only</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownOnUnknown)' != ''">$(_NuGetCooldownCmd) --on-unknown $(NuGetCooldownOnUnknown)</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownOnUnlisted)' != ''">$(_NuGetCooldownCmd) --on-unlisted $(NuGetCooldownOnUnlisted)</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownOnFeedError)' != ''">$(_NuGetCooldownCmd) --on-feed-error $(NuGetCooldownOnFeedError)</_NuGetCooldownCmd>
+      <_NuGetCooldownCmd Condition="'$(NuGetCooldownOnNotRestored)' != ''">$(_NuGetCooldownCmd) --on-not-restored $(NuGetCooldownOnNotRestored)</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownSources)' != ''">$(_NuGetCooldownCmd) --source "$(NuGetCooldownSources)"</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownAllow)' != ''">$(_NuGetCooldownCmd) --allow "$(NuGetCooldownAllow)"</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(_NuGetCooldownConfigFile)' != ''">$(_NuGetCooldownCmd) --config "$(_NuGetCooldownConfigFile)"</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownNoConfig)' == 'true'">$(_NuGetCooldownCmd) --no-config</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownOffline)' == 'true'">$(_NuGetCooldownCmd) --offline</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownNoCache)' == 'true'">$(_NuGetCooldownCmd) --no-cache</_NuGetCooldownCmd>
-      <_NuGetCooldownCmd Condition="'$(NuGetCooldownCacheDir)' != ''">$(_NuGetCooldownCmd) --cache-dir "$(NuGetCooldownCacheDir)"</_NuGetCooldownCmd>
+      <!-- Trim any trailing separator so a value like C:\cache\ does not turn the closing quote into an escaped literal. -->
+      <_NuGetCooldownCmd Condition="'$(NuGetCooldownCacheDir)' != ''">$(_NuGetCooldownCmd) --cache-dir "$(NuGetCooldownCacheDir.TrimEnd('\').TrimEnd('/'))"</_NuGetCooldownCmd>
     </PropertyGroup>
 
     <!--

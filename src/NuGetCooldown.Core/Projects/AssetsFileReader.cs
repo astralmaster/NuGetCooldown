@@ -10,12 +10,12 @@ namespace NuGetCooldown.Projects;
 public sealed record ResolvedPackage(PackageIdentity Identity, bool IsDirect);
 
 /// <summary>The packages resolved for one project.</summary>
-/// <param name="ProjectName">The project name recorded in the assets file.</param>
-/// <param name="AssetsFilePath">The <c>project.assets.json</c> the data came from.</param>
+/// <param name="ProjectName">The project name recorded in (or inferred for) the source file.</param>
+/// <param name="SourceFilePath">The file the data came from (<c>project.assets.json</c> or <c>packages.lock.json</c>).</param>
 /// <param name="Packages">Every resolved package: direct and transitive.</param>
 public sealed record ProjectPackages(
     string ProjectName,
-    string AssetsFilePath,
+    string SourceFilePath,
     IReadOnlyList<ResolvedPackage> Packages);
 
 /// <summary>

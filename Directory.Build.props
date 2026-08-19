@@ -22,7 +22,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageTags>nuget;security;supply-chain;cooldown;dependencies;dotnet-tool;msbuild;devsecops</PackageTags>
+    <PackageTags>nuget;security;supply-chain;cooldown;minimum-release-age;dependencies;dotnet-tool;msbuild;devsecops</PackageTags>
     <PackageReleaseNotes>https://github.com/astralmaster/NuGetCooldown/blob/main/CHANGELOG.md</PackageReleaseNotes>
   </PropertyGroup>
 

@@ -12,13 +12,15 @@ internal static class HelpText
 
         USAGE
           nuget-cooldown check [<path>] [options]     check a directory, solution, project,
-                                                      or project.assets.json (default: .)
+                                                      project.assets.json, or packages.lock.json
+                                                      (default: .)
           nuget-cooldown info <id> <version>          show when a package version was published
           nuget-cooldown clear-cache                  delete the local publish-date cache
           nuget-cooldown --version | --help
 
         CHECK OPTIONS
           -d, --days <n>            cooldown window in days (default: 7)
+              --hours <n>           cooldown window in hours (added to --days; use for sub-day windows)
           -c, --config <file>       config file (default: nearest nuget-cooldown.json, walking up)
               --no-config           ignore config files
           -s, --source <url>        NuGet V3 service index; repeatable or ';'-separated
@@ -29,6 +31,7 @@ internal static class HelpText
               --on-unknown <a>      undeterminable publish date: warn|error|ignore (default: warn)
               --on-unlisted <a>     unlisted (withdrawn) version: warn|error|ignore (default: warn)
               --on-feed-error <a>   source query failure: warn|error|ignore (default: warn)
+              --on-not-restored <a> project without a dependency graph: warn|error|ignore (default: warn)
               --warn-only           report findings but always exit 0
           -f, --format <text|json> output format (default: text)
           -v, --verbose             also list packages that passed

@@ -59,11 +59,15 @@ internal static class Program
         var probeStart = Directory.Exists(inputPath) ? inputPath : Path.GetDirectoryName(inputPath)!;
         var (settings, _) = SettingsBuilder.Build(options, probeStart);
 
-        var projects = inputs.AssetsFiles.Select(AssetsFileReader.Read).ToList();
+        var projects = inputs.GraphFiles.Select(DependencyGraphReader.Read).ToList();
 
         var checker = new CooldownChecker(CreateProvider(options, settings), TimeProvider.System);
         var report = await checker.CheckAsync(projects, settings, ToolVersion, cancellationToken);
-        report = report with { NotRestoredProjects = inputs.NotRestoredProjects };
+        report = report with
+        {
+            NotRestoredProjects = inputs.NotRestoredProjects,
+            NotRestoredSeverity = settings.OnNotRestored.ToSeverity(),
+        };
 
         if (options.MSBuildOrigin is { } origin)
         {
@@ -98,19 +102,19 @@ internal static class Program
         switch (lookup)
         {
             case { Outcome: LookupOutcome.Found, Info: { } info }:
-                var published = info.PublishedUtc;
-                var age = published is { } p ? (TimeProvider.System.GetUtcNow() - p).TotalDays : (double?)null;
+                var published = info.PublishedUtc?.ToUniversalTime();
+                var age = published is { } p ? TimeProvider.System.GetUtcNow() - p : (TimeSpan?)null;
                 Console.WriteLine(published is { } d
-                    ? $"  published: {d:yyyy-MM-dd HH:mm} UTC ({CooldownChecker.FormatDays(age!.Value)} ago)"
+                    ? $"  published: {d:yyyy-MM-dd HH:mm} UTC ({DurationFormat.Humanize(age!.Value)} ago)"
                     : "  published: unknown");
                 Console.WriteLine($"  listed:    {(info.Listed ? "yes" : "no (withdrawn?)")}");
                 Console.WriteLine($"  source:    {info.SourceUrl}{(info.FromCache ? " (cached)" : "")}");
                 if (age is { } a)
                 {
-                    var days = settings.CooldownDays;
-                    Console.WriteLine(a >= days
-                        ? $"  cooldown:  cleared ({days}-day window)"
-                        : $"  cooldown:  ACTIVE — {CooldownChecker.FormatDays(days - a)} remaining of {days}");
+                    var window = settings.Cooldown;
+                    Console.WriteLine(a >= window
+                        ? $"  cooldown:  cleared (window is {settings.CooldownText})"
+                        : $"  cooldown:  ACTIVE — {DurationFormat.Humanize(window - a)} remaining of {settings.CooldownText}");
                 }
 
                 return 0;
@@ -152,7 +156,8 @@ internal static class Program
         if (options?.MSBuildOrigin is { } origin)
         {
             // MSBuild mode parses stdout; a canonical error line makes the build fail visibly.
-            Console.Out.WriteLine($"{origin} : error {code}: NuGetCooldown: {message}");
+            Console.Out.WriteLine(
+                MSBuildReportWriter.CanonicalLine(origin, Severity.Error, code, $"NuGetCooldown: {message}"));
         }
         else
         {

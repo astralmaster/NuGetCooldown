@@ -194,13 +194,27 @@ public class CooldownCheckerTests
     }
 
     [Fact]
-    public async Task Zero_day_cooldown_never_violates()
+    public async Task Zero_cooldown_never_violates()
     {
         var provider = new FakeProvider().AddPublished(Pkg("Foo").Identity, Now.AddMinutes(-5));
 
-        var report = await CheckAsync(provider, new CooldownSettings { CooldownDays = 0 });
+        var report = await CheckAsync(provider, new CooldownSettings { Cooldown = TimeSpan.Zero });
 
         Assert.Equal(PackageStatus.Ok, Assert.Single(report.Results).Status);
+    }
+
+    [Fact]
+    public async Task Sub_day_cooldown_in_hours_is_honored()
+    {
+        // Published 4 hours ago, cooldown 12 hours: a violation that a days-only window could not express.
+        var provider = new FakeProvider().AddPublished(Pkg("Foo").Identity, Now.AddHours(-4));
+
+        var report = await CheckAsync(provider, new CooldownSettings { Cooldown = TimeSpan.FromHours(12) });
+
+        var result = Assert.Single(report.Results);
+        Assert.Equal(PackageStatus.Violation, result.Status);
+        Assert.Contains("cooldown is 12 hours", result.Message);
+        Assert.Contains("8 hours remaining", result.Message);
     }
 
     [Fact]
@@ -209,18 +223,7 @@ public class CooldownCheckerTests
         var provider = new FakeProvider();
 
         await Assert.ThrowsAsync<CooldownConfigException>(() =>
-            CheckAsync(provider, new CooldownSettings { CooldownDays = -1 }));
+            CheckAsync(provider, new CooldownSettings { Cooldown = TimeSpan.FromDays(-1) }));
         Assert.Empty(provider.Lookups);
-    }
-
-    [Theory]
-    [InlineData(1.0, "1 day")]
-    [InlineData(0.96, "1 day")]
-    [InlineData(0.5, "0.5 days")]
-    [InlineData(7.0, "7 days")]
-    [InlineData(12.44, "12.4 days")]
-    public void FormatDays_is_compact_and_grammatical(double days, string expected)
-    {
-        Assert.Equal(expected, CooldownChecker.FormatDays(days));
     }
 }

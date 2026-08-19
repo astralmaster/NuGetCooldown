@@ -51,7 +51,7 @@ public sealed class CooldownChecker(
         {
             ToolVersion = toolVersion,
             CheckedAtUtc = now,
-            CooldownDays = settings.CooldownDays,
+            Cooldown = settings.Cooldown,
             Scope = settings.Scope,
             Sources = settings.Sources,
             ProjectNames = projects.Select(p => p.ProjectName).Distinct().Order().ToArray(),
@@ -175,7 +175,7 @@ public sealed class CooldownChecker(
                 return baseResult with
                 {
                     Status = PackageStatus.FeedError,
-                    Severity = ToSeverity(settings.OnFeedError),
+                    Severity = settings.OnFeedError.ToSeverity(),
                     DiagnosticCode = DiagnosticCodes.FeedError,
                     Message = $"could not query the configured sources: {lookup.Message}",
                 };
@@ -184,7 +184,7 @@ public sealed class CooldownChecker(
                 return baseResult with
                 {
                     Status = PackageStatus.Unknown,
-                    Severity = ToSeverity(settings.OnUnknown),
+                    Severity = settings.OnUnknown.ToSeverity(),
                     DiagnosticCode = DiagnosticCodes.UnknownPublishDate,
                     Message = lookup.Message ?? "not found on any configured source",
                 };
@@ -203,7 +203,7 @@ public sealed class CooldownChecker(
             return baseResult with
             {
                 Status = PackageStatus.Unknown,
-                Severity = ToSeverity(settings.OnUnknown),
+                Severity = settings.OnUnknown.ToSeverity(),
                 DiagnosticCode = DiagnosticCodes.UnknownPublishDate,
                 Message = info.Listed
                     ? "the source reported no publish date"
@@ -211,20 +211,20 @@ public sealed class CooldownChecker(
             };
         }
 
-        var ageDays = (now - published).TotalDays;
-        baseResult = baseResult with { PublishedUtc = published, AgeDays = ageDays };
+        var age = now - published;
+        baseResult = baseResult with { PublishedUtc = published, AgeDays = age.TotalDays };
 
-        if (ageDays < settings.CooldownDays)
+        if (age < settings.Cooldown)
         {
-            var remaining = settings.CooldownDays - ageDays;
+            var remaining = settings.Cooldown - age;
             var unlistedNote = info.Listed ? "" : " — and the version is unlisted";
             return baseResult with
             {
                 Status = PackageStatus.Violation,
                 Severity = Severity.Error,
                 DiagnosticCode = DiagnosticCodes.Violation,
-                Message = $"published {FormatDays(ageDays)} ago; cooldown is {settings.CooldownDays} days"
-                          + $" ({FormatDays(remaining)} remaining){unlistedNote}",
+                Message = $"published {DurationFormat.Humanize(age)} ago; cooldown is {settings.CooldownText}"
+                          + $" ({DurationFormat.Humanize(remaining)} remaining){unlistedNote}",
             };
         }
 
@@ -233,28 +233,13 @@ public sealed class CooldownChecker(
             return baseResult with
             {
                 Status = PackageStatus.Unlisted,
-                Severity = ToSeverity(settings.OnUnlisted),
+                Severity = settings.OnUnlisted.ToSeverity(),
                 DiagnosticCode = DiagnosticCodes.Unlisted,
                 Message = "the version is unlisted on its source (possibly withdrawn — check why)",
             };
         }
 
         return baseResult;
-    }
-
-    private static Severity ToSeverity(PolicyAction action) => action switch
-    {
-        PolicyAction.Error => Severity.Error,
-        PolicyAction.Warn => Severity.Warning,
-        _ => Severity.None,
-    };
-
-    /// <summary>"0.8 days" / "1 day" / "12.4 days" — one decimal, trimmed for whole numbers.</summary>
-    public static string FormatDays(double days)
-    {
-        var rounded = Math.Round(days, 1);
-        var text = rounded.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
-        return text == "1" ? "1 day" : $"{text} days";
     }
 
     private static int CompareResults(PackageResult a, PackageResult b)

@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using NuGet.Versioning;
 using NuGetCooldown.Model;
 
 namespace NuGetCooldown.Configuration;
@@ -76,10 +75,9 @@ public sealed class AllowList
                 }
                 else
                 {
-                    // Normalize so "1.0" in the allow list matches the resolved "1.0.0".
-                    exactVersion = NuGetVersion.TryParse(parts[1], out var v)
-                        ? v.ToNormalizedString()
-                        : parts[1].Trim();
+                    // Normalize so "1.0" in the allow list matches the resolved "1.0.0",
+                    // using the exact same rule as PackageIdentity so the two can never drift.
+                    exactVersion = PackageIdentity.NormalizeVersion(parts[1]);
                 }
             }
 

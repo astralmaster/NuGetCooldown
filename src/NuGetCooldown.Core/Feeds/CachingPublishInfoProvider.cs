@@ -2,6 +2,21 @@ using NuGetCooldown.Model;
 
 namespace NuGetCooldown.Feeds;
 
+/// <summary>Turns cache entries into lookup results, so the cache contract lives in one place.</summary>
+internal static class CacheEntryExtensions
+{
+    /// <summary>A cache entry is usable only when it carries a resolved publish date.</summary>
+    public static bool IsUsable(this CacheEntry entry) => entry.PublishedUtc is not null;
+
+    /// <summary>Projects the entry onto the publish-info shape, marked as cache-served.</summary>
+    public static PackagePublishInfo ToPublishInfo(this CacheEntry entry) => new(
+        entry.PublishedUtc,
+        entry.Listed,
+        entry.SourceUrl,
+        entry.FromCatalog,
+        FromCache: true);
+}
+
 /// <summary>
 /// Serves lookups from the <see cref="FileCache"/> and stores fresh feed answers into it.
 /// Only answers with a resolved date are cached; misses and errors are always retried.
@@ -16,14 +31,9 @@ public sealed class CachingPublishInfoProvider(
         PackageIdentity package,
         CancellationToken cancellationToken)
     {
-        if (cache.TryGet(package) is { PublishedUtc: not null } entry)
+        if (cache.TryGet(package) is { } cached && cached.IsUsable())
         {
-            return PublishLookupResult.Found(new PackagePublishInfo(
-                entry.PublishedUtc,
-                entry.Listed,
-                entry.SourceUrl,
-                entry.FromCatalog,
-                FromCache: true));
+            return PublishLookupResult.Found(cached.ToPublishInfo());
         }
 
         var result = await inner.GetPublishInfoAsync(package, cancellationToken).ConfigureAwait(false);
@@ -54,9 +64,8 @@ public sealed class OfflineCacheProvider(FileCache cache) : IPackagePublishInfoP
         PackageIdentity package,
         CancellationToken cancellationToken)
     {
-        var result = cache.TryGet(package) is { PublishedUtc: not null } entry
-            ? PublishLookupResult.Found(new PackagePublishInfo(
-                entry.PublishedUtc, entry.Listed, entry.SourceUrl, entry.FromCatalog, FromCache: true))
+        var result = cache.TryGet(package) is { } cached && cached.IsUsable()
+            ? PublishLookupResult.Found(cached.ToPublishInfo())
             : PublishLookupResult.NotFound("not in the local cache (offline mode)");
 
         return Task.FromResult(result);

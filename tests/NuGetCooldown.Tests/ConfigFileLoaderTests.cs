@@ -25,17 +25,19 @@ public class ConfigFileLoaderTests
               "sources": ["https://feed.test/v3/index.json"],
               "onUnknown": "error",
               "onUnlisted": "ignore",
-              "onFeedError": "error"
+              "onFeedError": "error",
+              "onNotRestored": "error"
             }
             """);
 
-        Assert.Equal(14, settings.CooldownDays);
+        Assert.Equal(TimeSpan.FromDays(14), settings.Cooldown);
         Assert.Equal(DependencyScope.Direct, settings.Scope);
         Assert.Equal(["https://feed.test/v3/index.json"], settings.Sources);
         Assert.True(settings.Allow.IsAllowed(PackageIdentity.Create("MyCompany.X", "1.0.0")));
         Assert.Equal(PolicyAction.Error, settings.OnUnknown);
         Assert.Equal(PolicyAction.Ignore, settings.OnUnlisted);
         Assert.Equal(PolicyAction.Error, settings.OnFeedError);
+        Assert.Equal(PolicyAction.Error, settings.OnNotRestored);
     }
 
     [Fact]
@@ -44,7 +46,7 @@ public class ConfigFileLoaderTests
         using var dir = new TempDir();
         var settings = Load(dir, "{}");
 
-        Assert.Equal(CooldownSettings.DefaultCooldownDays, settings.CooldownDays);
+        Assert.Equal(TimeSpan.FromDays(CooldownSettings.DefaultCooldownDays), settings.Cooldown);
         Assert.Equal([CooldownSettings.NuGetOrgServiceIndex], settings.Sources);
         Assert.Equal(PolicyAction.Warn, settings.OnUnknown);
     }
@@ -60,7 +62,35 @@ public class ConfigFileLoaderTests
             }
             """);
 
-        Assert.Equal(3, settings.CooldownDays);
+        Assert.Equal(TimeSpan.FromDays(3), settings.Cooldown);
+    }
+
+    [Fact]
+    public void Hours_define_a_sub_day_window()
+    {
+        using var dir = new TempDir();
+        var settings = Load(dir, """{ "cooldownHours": 24 }""");
+
+        Assert.Equal(TimeSpan.FromHours(24), settings.Cooldown);
+    }
+
+    [Fact]
+    public void Days_and_hours_add_together()
+    {
+        using var dir = new TempDir();
+        var settings = Load(dir, """{ "cooldownDays": 1, "cooldownHours": 12 }""");
+
+        Assert.Equal(TimeSpan.FromHours(36), settings.Cooldown);
+    }
+
+    [Fact]
+    public void Hours_only_means_zero_days_not_the_default()
+    {
+        using var dir = new TempDir();
+        // 6 hours must not be silently widened to the 7-day default.
+        var settings = Load(dir, """{ "cooldownHours": 6 }""");
+
+        Assert.Equal(TimeSpan.FromHours(6), settings.Cooldown);
     }
 
     [Fact]
@@ -127,9 +157,9 @@ public class ConfigFileLoaderTests
     [Theory]
     [InlineData(-1)]
     [InlineData(3651)]
-    public void Out_of_range_days_fail_validation(int days)
+    public void Out_of_range_windows_fail_validation(int days)
     {
-        var settings = new CooldownSettings { CooldownDays = days };
+        var settings = new CooldownSettings { Cooldown = TimeSpan.FromDays(days) };
 
         Assert.Throws<CooldownConfigException>(settings.Validate);
     }

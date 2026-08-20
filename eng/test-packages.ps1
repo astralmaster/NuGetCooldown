@@ -126,13 +126,18 @@ try {
     $reported = & $toolExe --version 2>&1 | Out-String
     Assert ($reported.Trim() -eq $Version) "tool reports version $Version (got '$($reported.Trim())')"
 
-    & $toolExe check (Join-Path $work 'App') | Out-Null
+    # The sample references the freshly published NuGetCooldown.MSBuild, which is itself younger
+    # than the default window, so allow-list it (as the MSBuild build steps do via a property);
+    # the point of these steps is to exercise the standalone tool, not to re-flag our own package.
+    $allowSelf = '--allow', 'NuGetCooldown.MSBuild'
+
+    & $toolExe check (Join-Path $work 'App') @allowSelf | Out-Null
     Assert ($LASTEXITCODE -eq 0) 'tool check passes with defaults'
 
-    & $toolExe check (Join-Path $work 'App') --days 3000 | Out-Null
+    & $toolExe check (Join-Path $work 'App') --days 3000 @allowSelf | Out-Null
     Assert ($LASTEXITCODE -eq 1) 'tool check fails with a strict cooldown'
 
-    $json = & $toolExe check (Join-Path $work 'App') --format json | Out-String | ConvertFrom-Json
+    $json = & $toolExe check (Join-Path $work 'App') @allowSelf --format json | Out-String | ConvertFrom-Json
     Assert ($json.schemaVersion -eq 1 -and $json.summary.total -gt 0) 'tool JSON output is well-formed'
 }
 finally {

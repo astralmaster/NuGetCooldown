@@ -4,14 +4,25 @@
 # Exercises: MSBuild auto-enforcement (pass / violation / warn-only / disabled / config file),
 # incremental stamping, and the dotnet tool. Exits non-zero on the first failure.
 
-param([string]$Version = '1.0.0')
+param([string]$Version = '')
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $feed = Join-Path $root 'artifacts/packages'
-if (-not (Test-Path (Join-Path $feed "NuGetCooldown.MSBuild.$Version.nupkg"))) {
-    throw "Packages not found in $feed - run 'dotnet pack -c Release -o artifacts/packages' first."
+
+# When no version is passed, detect it from whatever was packed, so CI never has to track it.
+if (-not $Version) {
+    $pkg = Get-ChildItem (Join-Path $feed 'NuGetCooldown.MSBuild.*.nupkg') -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^NuGetCooldown\.MSBuild\.([0-9].*)\.nupkg$' } |
+        Select-Object -First 1
+    if ($pkg -and $pkg.Name -match '^NuGetCooldown\.MSBuild\.([0-9].*)\.nupkg$') {
+        $Version = $Matches[1]
+    }
 }
+if (-not $Version -or -not (Test-Path (Join-Path $feed "NuGetCooldown.MSBuild.$Version.nupkg"))) {
+    throw "No NuGetCooldown.MSBuild package found in $feed - run 'dotnet pack -c Release -o artifacts/packages' first."
+}
+Write-Host "Testing packed version $Version" -ForegroundColor Cyan
 
 $work = Join-Path ([System.IO.Path]::GetTempPath()) ("ncd-e2e-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $work | Out-Null

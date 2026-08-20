@@ -61,12 +61,14 @@ internal static class Program
 
         var projects = inputs.GraphFiles.Select(DependencyGraphReader.Read).ToList();
 
-        var checker = new CooldownChecker(CreateProvider(options, settings), TimeProvider.System);
+        var checker = new CooldownChecker(
+            CreateProvider(options, settings), TimeProvider.System, settings.MaxConcurrency);
         var report = await checker.CheckAsync(projects, settings, ToolVersion, cancellationToken);
         report = report with
         {
             NotRestoredProjects = inputs.NotRestoredProjects,
             NotRestoredSeverity = settings.OnNotRestored.ToSeverity(),
+            StaleProjects = inputs.StaleProjects,
         };
 
         if (options.MSBuildOrigin is { } origin)
@@ -79,7 +81,7 @@ internal static class Program
         }
         else
         {
-            new TextReportWriter(Console.Out, UseColor()).Write(report, options.Verbose);
+            new TextReportWriter(Console.Out, UseColor()).Write(report, options.Verbose, options.Quiet);
         }
 
         if (options.StampFilePath is { } stampPath)
@@ -145,7 +147,8 @@ internal static class Program
             return new OfflineCacheProvider(new FileCache(options.CacheDir));
         }
 
-        var client = new NuGetV3Client(NuGetHttpClientFactory.Create(ToolVersion), settings.Sources);
+        var client = new NuGetV3Client(
+            NuGetHttpClientFactory.Create(ToolVersion, settings.TimeoutSeconds), settings.Sources);
         return options.NoCache
             ? client
             : new CachingPublishInfoProvider(client, new FileCache(options.CacheDir), TimeProvider.System);

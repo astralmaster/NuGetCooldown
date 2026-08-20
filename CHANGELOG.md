@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org).
 
+## [1.1.0] - 2026-08-20
+
+### Added
+
+- Stale-restore detection: when a project file is newer than its dependency graph, the check warns
+  that a `dotnet restore` is probably pending (diagnostic `NCD007`), so a newly added too-new
+  package can't slip past a check run against a stale graph.
+- `--timeout` / `timeoutSeconds` / `NuGetCooldownTimeout` — configurable per-request feed timeout.
+- `--max-parallel` / `maxParallel` / `NuGetCooldownMaxParallel` — configurable lookup concurrency.
+- `--quiet` / `-q` — print only findings; a fully clean run produces no output. Handy for
+  pre-commit hooks and CI.
+
+### Changed
+
+- The JSON report now includes a `staleProjects` array.
+
 ## [1.0.0] - 2026-08-20
 
 Initial release.
@@ -35,4 +51,5 @@ Initial release.
 - Output formats: human-readable text, JSON (`schemaVersion: 1`), and MSBuild-canonical
   diagnostics (`NCD001`–`NCD999`).
 
+[1.1.0]: https://github.com/astralmaster/NuGetCooldown/releases/tag/v1.1.0
 [1.0.0]: https://github.com/astralmaster/NuGetCooldown/releases/tag/v1.0.0

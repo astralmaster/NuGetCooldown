@@ -21,6 +21,9 @@ public static class DiagnosticCodes
     /// <summary>Invalid usage or configuration.</summary>
     public const string Usage = "NCD006";
 
+    /// <summary>A project was edited after its dependency graph was written; a restore is likely pending.</summary>
+    public const string StaleGraph = "NCD007";
+
     /// <summary>Unexpected internal failure.</summary>
     public const string Internal = "NCD999";
 }

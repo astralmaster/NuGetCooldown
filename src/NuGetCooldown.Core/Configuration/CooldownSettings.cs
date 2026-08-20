@@ -44,6 +44,12 @@ public sealed record CooldownSettings
     /// <summary>When true, every finding is downgraded to a warning and the exit code is always 0.</summary>
     public bool WarnOnly { get; init; }
 
+    /// <summary>Per-request HTTP timeout, in seconds, for feed lookups.</summary>
+    public int TimeoutSeconds { get; init; } = 30;
+
+    /// <summary>Maximum number of feed lookups performed concurrently.</summary>
+    public int MaxConcurrency { get; init; } = 8;
+
     /// <summary>The cooldown window in whole-ish days, for display.</summary>
     public string CooldownText => DurationFormat.Humanize(Cooldown);
 
@@ -54,6 +60,18 @@ public sealed record CooldownSettings
         {
             throw new CooldownConfigException(
                 $"The cooldown window must be between 0 and {MaxCooldownDays} days; got {CooldownText}.");
+        }
+
+        if (TimeoutSeconds is < 1 or > 600)
+        {
+            throw new CooldownConfigException(
+                $"The request timeout must be between 1 and 600 seconds; got {TimeoutSeconds}.");
+        }
+
+        if (MaxConcurrency is < 1 or > 32)
+        {
+            throw new CooldownConfigException(
+                $"The maximum parallelism must be between 1 and 32; got {MaxConcurrency}.");
         }
 
         if (Sources.Count == 0)

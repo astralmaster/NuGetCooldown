@@ -74,6 +74,51 @@ public class ReportWriterTests
     }
 
     [Fact]
+    public void Quiet_mode_prints_nothing_on_a_clean_run()
+    {
+        var report = Report(Result("Fine", PackageStatus.Ok, Severity.None));
+
+        var writer = new StringWriter();
+        new TextReportWriter(writer, useColor: false).Write(report, verbose: false, quiet: true);
+
+        Assert.Equal("", writer.ToString());
+    }
+
+    [Fact]
+    public void Quiet_mode_still_prints_findings()
+    {
+        var report = Report(
+            Result("Fresh", PackageStatus.Violation, Severity.Error, "NCD001", "too young"),
+            Result("Fine", PackageStatus.Ok, Severity.None));
+
+        var writer = new StringWriter();
+        new TextReportWriter(writer, useColor: false).Write(report, verbose: false, quiet: true);
+        var text = writer.ToString();
+
+        Assert.Contains("Fresh 1.0.0", text);
+        Assert.DoesNotContain("cooldown:", text);   // no header
+        Assert.DoesNotContain("Checked", text);      // no summary
+    }
+
+    [Fact]
+    public void Text_output_warns_about_stale_projects()
+    {
+        var report = Report(Result("Fine", PackageStatus.Ok, Severity.None)) with
+        {
+            StaleProjects = ["/x/App/App.csproj"],
+        };
+
+        var writer = new StringWriter();
+        new TextReportWriter(writer, useColor: false).Write(report, verbose: false);
+        var text = writer.ToString();
+
+        Assert.Contains("App.csproj", text);
+        Assert.Contains("stale", text);
+        Assert.Contains("1 possibly-stale project", text);
+        Assert.False(report.IsClean);
+    }
+
+    [Fact]
     public void Text_output_warns_about_unrestored_projects()
     {
         var report = Report() with { NotRestoredProjects = ["/x/Skipped/Skipped.csproj"] };

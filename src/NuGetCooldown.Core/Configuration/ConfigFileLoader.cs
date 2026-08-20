@@ -39,6 +39,12 @@ public sealed class ConfigFileDto
 
     /// <summary><c>warn</c>, <c>error</c>, or <c>ignore</c>.</summary>
     public string? OnNotRestored { get; set; }
+
+    /// <summary>Per-request HTTP timeout, in seconds.</summary>
+    public int? TimeoutSeconds { get; set; }
+
+    /// <summary>Maximum number of concurrent feed lookups.</summary>
+    public int? MaxParallel { get; set; }
 }
 
 /// <summary>Finds and applies <c>nuget-cooldown.json</c> configuration files.</summary>
@@ -132,6 +138,16 @@ public static class ConfigFileLoader
         if (dto.OnNotRestored is { } onNotRestored)
         {
             settings = settings with { OnNotRestored = ParseEnum<PolicyAction>(onNotRestored, "onNotRestored", path) };
+        }
+
+        if (dto.TimeoutSeconds is { } timeout)
+        {
+            settings = settings with { TimeoutSeconds = timeout };
+        }
+
+        if (dto.MaxParallel is { } maxParallel)
+        {
+            settings = settings with { MaxConcurrency = maxParallel };
         }
 
         return settings;

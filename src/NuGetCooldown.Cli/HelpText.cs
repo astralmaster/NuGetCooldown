@@ -33,8 +33,11 @@ internal static class HelpText
               --on-feed-error <a>   source query failure: warn|error|ignore (default: warn)
               --on-not-restored <a> project without a dependency graph: warn|error|ignore (default: warn)
               --warn-only           report findings but always exit 0
+              --timeout <seconds>   per-request feed timeout (default: 30)
+              --max-parallel <n>    max concurrent feed lookups, 1-32 (default: 8)
           -f, --format <text|json> output format (default: text)
           -v, --verbose             also list packages that passed
+          -q, --quiet               print only findings; nothing on a clean run
               --offline             use only the local cache; no network
               --no-cache            bypass the local cache; always query sources
               --cache-dir <dir>     cache location (default: %LOCALAPPDATA%/NuGetCooldown,

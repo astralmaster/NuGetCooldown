@@ -175,6 +175,34 @@ public class ConfigFileLoaderTests
     }
 
     [Fact]
+    public void Timeout_and_parallel_are_read_from_config()
+    {
+        using var dir = new TempDir();
+        var settings = Load(dir, """{ "timeoutSeconds": 90, "maxParallel": 16 }""");
+
+        Assert.Equal(90, settings.TimeoutSeconds);
+        Assert.Equal(16, settings.MaxConcurrency);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(601)]
+    public void Out_of_range_timeout_fails_validation(int seconds)
+    {
+        Assert.Throws<CooldownConfigException>(
+            () => new CooldownSettings { TimeoutSeconds = seconds }.Validate());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(33)]
+    public void Out_of_range_parallelism_fails_validation(int parallel)
+    {
+        Assert.Throws<CooldownConfigException>(
+            () => new CooldownSettings { MaxConcurrency = parallel }.Validate());
+    }
+
+    [Fact]
     public void Defaults_are_valid()
     {
         new CooldownSettings().Validate();

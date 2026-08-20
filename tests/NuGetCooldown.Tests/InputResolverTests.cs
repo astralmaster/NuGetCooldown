@@ -145,6 +145,34 @@ public class InputResolverTests
     }
 
     [Fact]
+    public void A_project_edited_after_restore_is_reported_as_stale()
+    {
+        using var dir = new TempDir();
+        var assets = dir.WriteFile("App/obj/project.assets.json", MinimalAssets);
+        var project = dir.WriteFile("App/App.csproj", "<Project />");
+        // Simulate editing the project after the last restore.
+        File.SetLastWriteTimeUtc(project, File.GetLastWriteTimeUtc(assets).AddMinutes(5));
+
+        var resolved = InputResolver.Resolve(project);
+
+        Assert.Equal([assets], resolved.GraphFiles);
+        Assert.Equal([project], resolved.StaleProjects);
+    }
+
+    [Fact]
+    public void A_project_restored_after_its_last_edit_is_not_stale()
+    {
+        using var dir = new TempDir();
+        var project = dir.WriteFile("App/App.csproj", "<Project />");
+        var assets = dir.WriteFile("App/obj/project.assets.json", MinimalAssets);
+        File.SetLastWriteTimeUtc(assets, File.GetLastWriteTimeUtc(project).AddMinutes(5));
+
+        var resolved = InputResolver.Resolve(project);
+
+        Assert.Empty(resolved.StaleProjects);
+    }
+
+    [Fact]
     public void Empty_directory_throws()
     {
         using var dir = new TempDir();

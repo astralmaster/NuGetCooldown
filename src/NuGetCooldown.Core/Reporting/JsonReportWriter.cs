@@ -21,6 +21,7 @@ public static class JsonReportWriter
             Projects: report.ProjectNames,
             NotRestoredProjects: report.NotRestoredProjects,
             NotRestoredSeverity: report.NotRestoredSeverity.ToString().ToLowerInvariant(),
+            StaleProjects: report.StaleProjects,
             Summary: new JsonSummaryDto(
                 Total: report.Results.Count,
                 Violations: report.Count(PackageStatus.Violation),
@@ -63,6 +64,7 @@ public sealed record JsonReportDto(
     IReadOnlyList<string> Projects,
     IReadOnlyList<string> NotRestoredProjects,
     string NotRestoredSeverity,
+    IReadOnlyList<string> StaleProjects,
     JsonSummaryDto Summary,
     IReadOnlyList<JsonResultDto> Results,
     double ElapsedSeconds,

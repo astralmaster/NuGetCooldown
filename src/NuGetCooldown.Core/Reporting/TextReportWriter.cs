@@ -5,31 +5,28 @@ namespace NuGetCooldown.Reporting;
 /// <summary>Human-readable console output.</summary>
 public sealed class TextReportWriter(TextWriter output, bool useColor)
 {
-    /// <summary>Writes the report. Findings are always shown; OK/allowed packages only when <paramref name="verbose"/>.</summary>
-    public void Write(CheckReport report, bool verbose)
+    /// <summary>
+    /// Writes the report. Findings are always shown; OK/allowed packages only when <paramref name="verbose"/>.
+    /// In <paramref name="quiet"/> mode only findings are printed — a fully clean run produces no output.
+    /// </summary>
+    public void Write(CheckReport report, bool verbose, bool quiet = false)
     {
-        output.WriteLine(
-            $"NuGetCooldown {report.ToolVersion} — cooldown: {report.CooldownText}, " +
-            $"scope: {(report.Scope == DependencyScope.All ? "all packages" : "direct only")}, " +
-            $"sources: {string.Join(", ", report.Sources.Select(ShortSource))}");
-
-        if (report.ProjectNames.Count > 0)
+        if (!quiet)
         {
-            output.WriteLine($"Projects: {string.Join(", ", report.ProjectNames)}");
-        }
+            output.WriteLine(
+                $"NuGetCooldown {report.ToolVersion} — cooldown: {report.CooldownText}, " +
+                $"scope: {(report.Scope == DependencyScope.All ? "all packages" : "direct only")}, " +
+                $"sources: {string.Join(", ", report.Sources.Select(ShortSource))}");
 
-        output.WriteLine();
-
-        if (report.NotRestoredSeverity != Severity.None)
-        {
-            var color = report.NotRestoredSeverity == Severity.Error ? ConsoleColor.Red : ConsoleColor.Yellow;
-            foreach (var project in report.NotRestoredProjects)
+            if (report.ProjectNames.Count > 0)
             {
-                var marker = report.NotRestoredSeverity == Severity.Error ? "x" : "!";
-                WriteColored(color, $"  {marker} {Path.GetFileName(project)} has not been restored — run 'dotnet restore' to include it");
-                output.WriteLine();
+                output.WriteLine($"Projects: {string.Join(", ", report.ProjectNames)}");
             }
+
+            output.WriteLine();
         }
+
+        WriteProjectWarnings(report);
 
         var shown = report.Results
             .Where(r => verbose || r.Severity != Severity.None)
@@ -43,10 +40,36 @@ public sealed class TextReportWriter(TextWriter output, bool useColor)
                 WriteResult(result, width);
             }
 
-            output.WriteLine();
+            if (!quiet)
+            {
+                output.WriteLine();
+            }
         }
 
-        WriteSummary(report);
+        if (!quiet)
+        {
+            WriteSummary(report);
+        }
+    }
+
+    private void WriteProjectWarnings(CheckReport report)
+    {
+        if (report.NotRestoredSeverity != Severity.None)
+        {
+            var color = report.NotRestoredSeverity == Severity.Error ? ConsoleColor.Red : ConsoleColor.Yellow;
+            var marker = report.NotRestoredSeverity == Severity.Error ? "x" : "!";
+            foreach (var project in report.NotRestoredProjects)
+            {
+                WriteColored(color, $"  {marker} {Path.GetFileName(project)} has not been restored — run 'dotnet restore' to include it");
+                output.WriteLine();
+            }
+        }
+
+        foreach (var project in report.StaleProjects)
+        {
+            WriteColored(ConsoleColor.Yellow, $"  ! {Path.GetFileName(project)} was edited after its last restore — results may be stale; run 'dotnet restore'");
+            output.WriteLine();
+        }
     }
 
     private void WriteResult(PackageResult result, int width)
@@ -84,10 +107,12 @@ public sealed class TextReportWriter(TextWriter output, bool useColor)
         AddCount(findings, report.Count(PackageStatus.Unlisted), "unlisted version");
         AddCount(findings, report.Count(PackageStatus.Unknown), "unknown publish date");
         AddCount(findings, report.Count(PackageStatus.FeedError), "feed error");
-        if (report.NotRestoredSeverity != Severity.None && report.NotRestoredProjects.Count > 0)
+        if (report.NotRestoredSeverity != Severity.None)
         {
             AddCount(findings, report.NotRestoredProjects.Count, "unrestored project");
         }
+
+        AddCount(findings, report.StaleProjects.Count, "possibly-stale project");
 
         if (findings.Count == 0)
         {

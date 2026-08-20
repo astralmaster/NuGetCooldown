@@ -118,6 +118,18 @@ public class SettingsBuilderTests
     }
 
     [Fact]
+    public void Timeout_and_parallel_come_from_the_command_line()
+    {
+        using var dir = new TempDir();
+        var options = new CliOptions { Command = "check", TimeoutSeconds = 60, MaxParallel = 2 };
+
+        var (settings, _) = SettingsBuilder.Build(options, dir.Path);
+
+        Assert.Equal(60, settings.TimeoutSeconds);
+        Assert.Equal(2, settings.MaxConcurrency);
+    }
+
+    [Fact]
     public void Cli_sources_replace_config_sources()
     {
         using var dir = new TempDir();

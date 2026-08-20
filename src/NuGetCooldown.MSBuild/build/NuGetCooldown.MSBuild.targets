@@ -23,7 +23,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <_NuGetCooldownSettings Include="v2|$(NuGetCooldownDays)|$(NuGetCooldownHours)|$(NuGetCooldownScope)|$(NuGetCooldownWarnOnly)|$(NuGetCooldownOnUnknown)|$(NuGetCooldownOnUnlisted)|$(NuGetCooldownOnFeedError)|$(NuGetCooldownOnNotRestored)|$(NuGetCooldownSources)|$(NuGetCooldownAllow)|$(_NuGetCooldownConfigFile)|$(NuGetCooldownOffline)|$(NuGetCooldownNoCache)|$(NuGetCooldownNoConfig)|$(NuGetCooldownCacheDir)" />
+      <_NuGetCooldownSettings Include="v3|$(NuGetCooldownDays)|$(NuGetCooldownHours)|$(NuGetCooldownScope)|$(NuGetCooldownWarnOnly)|$(NuGetCooldownOnUnknown)|$(NuGetCooldownOnUnlisted)|$(NuGetCooldownOnFeedError)|$(NuGetCooldownOnNotRestored)|$(NuGetCooldownTimeout)|$(NuGetCooldownMaxParallel)|$(NuGetCooldownSources)|$(NuGetCooldownAllow)|$(_NuGetCooldownConfigFile)|$(NuGetCooldownOffline)|$(NuGetCooldownNoCache)|$(NuGetCooldownNoConfig)|$(NuGetCooldownCacheDir)" />
     </ItemGroup>
 
     <Hash ItemsToHash="@(_NuGetCooldownSettings)">
@@ -71,6 +71,8 @@
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownOnUnlisted)' != ''">$(_NuGetCooldownCmd) --on-unlisted $(NuGetCooldownOnUnlisted)</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownOnFeedError)' != ''">$(_NuGetCooldownCmd) --on-feed-error $(NuGetCooldownOnFeedError)</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownOnNotRestored)' != ''">$(_NuGetCooldownCmd) --on-not-restored $(NuGetCooldownOnNotRestored)</_NuGetCooldownCmd>
+      <_NuGetCooldownCmd Condition="'$(NuGetCooldownTimeout)' != ''">$(_NuGetCooldownCmd) --timeout $(NuGetCooldownTimeout)</_NuGetCooldownCmd>
+      <_NuGetCooldownCmd Condition="'$(NuGetCooldownMaxParallel)' != ''">$(_NuGetCooldownCmd) --max-parallel $(NuGetCooldownMaxParallel)</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownSources)' != ''">$(_NuGetCooldownCmd) --source "$(NuGetCooldownSources)"</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(NuGetCooldownAllow)' != ''">$(_NuGetCooldownCmd) --allow "$(NuGetCooldownAllow)"</_NuGetCooldownCmd>
       <_NuGetCooldownCmd Condition="'$(_NuGetCooldownConfigFile)' != ''">$(_NuGetCooldownCmd) --config "$(_NuGetCooldownConfigFile)"</_NuGetCooldownCmd>

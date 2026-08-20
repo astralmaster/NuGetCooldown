@@ -111,6 +111,15 @@ internal static class ArgsParser
                 case ("check", "--warn-only"):
                     options.WarnOnly = true;
                     break;
+                case ("check", "--timeout"):
+                    options.TimeoutSeconds = ParseCount(Value(), "seconds");
+                    break;
+                case ("check", "--max-parallel"):
+                    options.MaxParallel = ParseCount(Value(), "parallelism");
+                    break;
+                case ("check", "--quiet") or ("check", "-q"):
+                    options.Quiet = true;
+                    break;
                 case ("check", "--format") or ("check", "-f"):
                     options.Format = Value() switch
                     {

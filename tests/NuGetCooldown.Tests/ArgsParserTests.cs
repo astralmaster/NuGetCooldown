@@ -50,8 +50,11 @@ public class ArgsParserTests
             "--on-feed-error", "error",
             "--on-not-restored", "error",
             "--warn-only",
+            "--timeout", "45",
+            "--max-parallel", "4",
             "--format", "json",
             "--verbose",
+            "--quiet",
             "--no-cache",
             "--offline",
             "--cache-dir", "/tmp/cache",
@@ -72,8 +75,11 @@ public class ArgsParserTests
         Assert.Equal("error", options.OnFeedError);
         Assert.Equal("error", options.OnNotRestored);
         Assert.True(options.WarnOnly);
+        Assert.Equal(45, options.TimeoutSeconds);
+        Assert.Equal(4, options.MaxParallel);
         Assert.Equal("json", options.Format);
         Assert.True(options.Verbose);
+        Assert.True(options.Quiet);
         Assert.True(options.NoCache);
         Assert.True(options.Offline);
         Assert.Equal("/tmp/cache", options.CacheDir);

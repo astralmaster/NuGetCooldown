@@ -67,6 +67,20 @@
       "type": "string",
       "enum": ["warn", "error", "ignore"],
       "default": "warn"
+    },
+    "timeoutSeconds": {
+      "description": "Per-request HTTP timeout, in seconds, for feed lookups.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 600,
+      "default": 30
+    },
+    "maxParallel": {
+      "description": "Maximum number of concurrent feed lookups.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32,
+      "default": 8
     }
   }
 }

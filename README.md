@@ -102,7 +102,9 @@ project, like `.editorconfig`). Comments and trailing commas are allowed.
   "onUnknown": "warn",                     // publish date undeterminable: warn | error | ignore
   "onUnlisted": "warn",                    // version was unlisted/withdrawn: warn | error | ignore
   "onFeedError": "warn",                   // source unreachable: warn | error | ignore
-  "onNotRestored": "warn"                  // project has no graph to check: warn | error | ignore
+  "onNotRestored": "warn",                 // project has no graph to check: warn | error | ignore
+  "timeoutSeconds": 30,                    // per-request feed timeout
+  "maxParallel": 8                         // max concurrent feed lookups (1-32)
 }
 ```
 
@@ -126,6 +128,8 @@ Everything is also settable per project, in `Directory.Build.props`, or on the c
 | `NuGetCooldownOnUnlisted` | `warn` | `warn` \| `error` \| `ignore` |
 | `NuGetCooldownOnFeedError` | `warn` | `warn` \| `error` \| `ignore` |
 | `NuGetCooldownOnNotRestored` | `warn` | `warn` \| `error` \| `ignore` |
+| `NuGetCooldownTimeout` | `30` | Per-request feed timeout, in seconds |
+| `NuGetCooldownMaxParallel` | `8` | Max concurrent feed lookups (1–32) |
 | `NuGetCooldownConfigFile` | auto | Explicit path to `nuget-cooldown.json` |
 | `NuGetCooldownNoConfig` | `false` | Ignore config files |
 | `NuGetCooldownOffline` | `false` | Use only the local cache; no network |
@@ -149,7 +153,9 @@ Everything is also settable per project, in `Directory.Build.props`, or on the c
 4. Anything younger than the cooldown window fails the check. Unlisted versions, undeterminable
    dates, unreachable feeds, and unrestored projects are each reported under their own policy
    (warn by default — the tool fails open, so a nuget.org outage doesn't stop your team; set the
-   relevant `on*` policy to `error` for strict mode).
+   relevant `on*` policy to `error` for strict mode). If a project file is newer than its
+   dependency graph, it warns that a `dotnet restore` is probably pending, since the check would
+   otherwise be looking at stale dependencies.
 
 ## Diagnostics
 
@@ -161,6 +167,7 @@ Everything is also settable per project, in `Directory.Build.props`, or on the c
 | `NCD004` | A configured source could not be queried |
 | `NCD005` | A project was requested but has no dependency graph to check (not restored) |
 | `NCD006` | Invalid usage or configuration |
+| `NCD007` | A project was edited after its last restore; results may be stale |
 | `NCD999` | Unexpected internal failure |
 
 **Exit codes:** `0` pass (or `--warn-only`) · `1` violations/policy errors · `2` bad

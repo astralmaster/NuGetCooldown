@@ -33,6 +33,9 @@ public sealed record CheckReport
     /// <summary>Severity assigned to unrestored projects, per the <c>onNotRestored</c> policy.</summary>
     public Severity NotRestoredSeverity { get; init; } = Severity.Warning;
 
+    /// <summary>Projects whose file is newer than their dependency graph (a restore is probably pending).</summary>
+    public IReadOnlyList<string> StaleProjects { get; init; } = [];
+
     /// <summary>The cooldown window, formatted for display.</summary>
     public string CooldownText => DurationFormat.Humanize(Cooldown);
 
@@ -50,9 +53,11 @@ public sealed record CheckReport
         Results.Any(r => r.Severity == Severity.Error)
         || (NotRestoredSeverity == Severity.Error && NotRestoredProjects.Count > 0);
 
-    /// <summary>True when no result is a warning or an error and every project was restored.</summary>
+    /// <summary>True when no result is a warning or an error and every project was restored and current.</summary>
     public bool IsClean =>
-        NotRestoredProjects.Count == 0 && Results.All(r => r.Severity == Severity.None);
+        NotRestoredProjects.Count == 0
+        && StaleProjects.Count == 0
+        && Results.All(r => r.Severity == Severity.None);
 
     /// <summary>
     /// True only when every package's age was genuinely determined — no feed errors and no unknown

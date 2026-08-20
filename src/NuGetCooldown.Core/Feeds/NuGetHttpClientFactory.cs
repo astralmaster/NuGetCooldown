@@ -9,7 +9,7 @@ public static class NuGetHttpClientFactory
     /// Creates a client with gzip decompression (the fast registration endpoints are gzip-encoded)
     /// and an identifying User-Agent.
     /// </summary>
-    public static HttpClient Create(string toolVersion)
+    public static HttpClient Create(string toolVersion, int timeoutSeconds = 30)
     {
         var handler = new SocketsHttpHandler
         {
@@ -17,7 +17,7 @@ public static class NuGetHttpClientFactory
             PooledConnectionLifetime = TimeSpan.FromMinutes(10),
         };
 
-        var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+        var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(timeoutSeconds) };
         client.DefaultRequestHeaders.UserAgent.ParseAdd(
             $"NuGetCooldown/{toolVersion} (+https://github.com/astralmaster/NuGetCooldown)");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/json");

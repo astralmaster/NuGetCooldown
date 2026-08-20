@@ -19,8 +19,11 @@ internal sealed class CliOptions
     public string? OnFeedError { get; set; }
     public string? OnNotRestored { get; set; }
     public bool WarnOnly { get; set; }
+    public int? TimeoutSeconds { get; set; }
+    public int? MaxParallel { get; set; }
     public string Format { get; set; } = "text";
     public bool Verbose { get; set; }
+    public bool Quiet { get; set; }
     public string? MSBuildOrigin { get; set; }
     public string? StampFilePath { get; set; }
 

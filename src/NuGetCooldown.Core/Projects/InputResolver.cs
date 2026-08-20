@@ -2,12 +2,14 @@ using NuGetCooldown.Configuration;
 
 namespace NuGetCooldown.Projects;
 
-/// <summary>The dependency-graph files to check, plus any projects that were found but not restored.</summary>
+/// <summary>The dependency-graph files to check, plus projects found but not restored or possibly stale.</summary>
 /// <param name="GraphFiles">Absolute paths of the <c>project.assets.json</c> / <c>packages.lock.json</c> files to check.</param>
 /// <param name="NotRestoredProjects">Projects with no graph file — neither restore output nor a lock file exists.</param>
+/// <param name="StaleProjects">Projects whose file is newer than their graph file — a restore is probably pending.</param>
 public sealed record ResolvedInputs(
     IReadOnlyList<string> GraphFiles,
-    IReadOnlyList<string> NotRestoredProjects);
+    IReadOnlyList<string> NotRestoredProjects,
+    IReadOnlyList<string> StaleProjects);
 
 /// <summary>
 /// Turns the CLI's path argument — a directory, a solution, a project file, an assets file, or a
@@ -46,7 +48,8 @@ public static class InputResolver
         if (string.Equals(name, DependencyGraphReader.AssetsFileName, StringComparison.OrdinalIgnoreCase)
             || string.Equals(name, LockFileReader.FileName, StringComparison.OrdinalIgnoreCase))
         {
-            return new ResolvedInputs([fullPath], []);
+            // The graph file was named directly; there is no project to compare its age against.
+            return new ResolvedInputs([fullPath], [], []);
         }
 
         var extension = Path.GetExtension(fullPath).ToLowerInvariant();
@@ -131,6 +134,7 @@ public static class InputResolver
     {
         var graphFiles = new List<string>();
         var notRestored = new List<string>();
+        var stale = new List<string>();
 
         foreach (var project in projectPaths.Distinct(StringComparer.OrdinalIgnoreCase))
         {
@@ -139,17 +143,24 @@ public static class InputResolver
             var lockFile = Path.Combine(projectDir, LockFileReader.FileName);
 
             // Prefer the restore output; fall back to a committed lock file so the check can run pre-restore.
-            if (File.Exists(assetsFile))
-            {
-                graphFiles.Add(assetsFile);
-            }
-            else if (File.Exists(lockFile))
-            {
-                graphFiles.Add(lockFile);
-            }
-            else
+            var graphFile = File.Exists(assetsFile) ? assetsFile
+                          : File.Exists(lockFile) ? lockFile
+                          : null;
+
+            if (graphFile is null)
             {
                 notRestored.Add(project);
+                continue;
+            }
+
+            graphFiles.Add(graphFile);
+
+            // If the project was edited after its graph was written, the graph — and therefore the
+            // check — may be based on stale dependencies. A newly added too-new package would be
+            // invisible until the next restore.
+            if (IsProjectNewerThanGraph(project, graphFile))
+            {
+                stale.Add(project);
             }
         }
 
@@ -161,6 +172,19 @@ public static class InputResolver
                     : "No projects found to check.");
         }
 
-        return new ResolvedInputs(graphFiles, notRestored);
+        return new ResolvedInputs(graphFiles, notRestored, stale);
+    }
+
+    private static bool IsProjectNewerThanGraph(string projectFile, string graphFile)
+    {
+        try
+        {
+            return File.GetLastWriteTimeUtc(projectFile) > File.GetLastWriteTimeUtc(graphFile);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // If we can't compare timestamps, don't invent a warning.
+            return false;
+        }
     }
 }

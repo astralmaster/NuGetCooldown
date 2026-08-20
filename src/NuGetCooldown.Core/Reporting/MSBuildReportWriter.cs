@@ -31,6 +31,16 @@ public static class MSBuildReportWriter
             }
         }
 
+        foreach (var project in report.StaleProjects)
+        {
+            output.WriteLine(CanonicalLine(
+                origin,
+                Severity.Warning,
+                DiagnosticCodes.StaleGraph,
+                $"Project {Path.GetFileName(project)} was edited after its last restore; "
+                + "results may be stale (run 'dotnet restore')."));
+        }
+
         output.WriteLine(
             $"NuGetCooldown: checked {report.CheckedCount} package version(s), cooldown {report.CooldownText}" +
             (report.CacheHits > 0 ? $" ({report.CacheHits} from cache)" : "") + ".");

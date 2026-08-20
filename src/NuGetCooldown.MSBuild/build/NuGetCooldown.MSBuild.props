@@ -14,8 +14,9 @@
     <!--
       Empty by default: NuGetCooldownDays, NuGetCooldownHours, NuGetCooldownScope,
       NuGetCooldownOnUnknown, NuGetCooldownOnUnlisted, NuGetCooldownOnFeedError,
-      NuGetCooldownOnNotRestored, NuGetCooldownSources (';'-separated),
-      NuGetCooldownAllow (';'-separated), NuGetCooldownConfigFile, NuGetCooldownCacheDir.
+      NuGetCooldownOnNotRestored, NuGetCooldownTimeout, NuGetCooldownMaxParallel,
+      NuGetCooldownSources (';'-separated), NuGetCooldownAllow (';'-separated),
+      NuGetCooldownConfigFile, NuGetCooldownCacheDir.
     -->
     <NuGetCooldownToolPath Condition="'$(NuGetCooldownToolPath)' == ''">$(MSBuildThisFileDirectory)..\tools\net8.0\any\NuGetCooldown.Cli.dll</NuGetCooldownToolPath>
   </PropertyGroup>

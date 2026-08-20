@@ -105,6 +105,16 @@ internal static class SettingsBuilder
             settings = settings with { WarnOnly = true };
         }
 
+        if (options.TimeoutSeconds is { } timeout)
+        {
+            settings = settings with { TimeoutSeconds = timeout };
+        }
+
+        if (options.MaxParallel is { } maxParallel)
+        {
+            settings = settings with { MaxConcurrency = maxParallel };
+        }
+
         settings.Validate();
         return (settings, configPath);
     }
